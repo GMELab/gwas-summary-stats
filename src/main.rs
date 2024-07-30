@@ -553,11 +553,11 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     raw_data.data =
         unsafe { std::mem::transmute::<Vec<MaybeUninit<Vec<String>>>, Vec<Vec<String>>>(new_data) };
 
+    let dbsnp = flate2::read::GzDecoder::new(std::fs::File::open(&ctx.args.dbsnp_file).unwrap());
     let mut dbsnp = csv::ReaderBuilder::new()
         .delimiter(b'\t')
         .has_headers(true)
-        .from_path(&ctx.args.dbsnp_file)
-        .unwrap();
+        .from_reader(dbsnp);
     let header = dbsnp
         .headers()
         .unwrap()
