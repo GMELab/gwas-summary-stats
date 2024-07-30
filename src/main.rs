@@ -129,7 +129,7 @@ fn preformat(ctx: &Ctx) -> Data {
         .collect::<Vec<_>>();
     if rows.is_empty() {
         error!(
-            "No rows found in the GWAS formatting legend for trait_name={}",
+            "No rows found in the GWAS formatting legend for trait_name={}.",
             ctx.args.trait_name
         );
         panic!();
