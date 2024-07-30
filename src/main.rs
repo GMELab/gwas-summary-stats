@@ -126,6 +126,7 @@ impl Data {
     }
 }
 
+#[tracing::instrument(skip(ctx))]
 fn preformat(ctx: &Ctx) -> Data {
     let rows = ctx
         .sheet
@@ -378,6 +379,7 @@ fn preformat(ctx: &Ctx) -> Data {
     raw_data
 }
 
+#[tracing::instrument(skip(ctx, raw_data))]
 fn liftover(ctx: &Ctx, raw_data: &Data) {
     let liftover_dir = std::path::Path::new(&ctx.args.liftover_dir);
     let mut bed = std::fs::File::create(liftover_dir.join("input.bed")).unwrap();
@@ -486,6 +488,7 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
     }
 }
 
+#[tracing::instrument(skip(ctx, raw_data))]
 fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     let mut hg19 = csv::ReaderBuilder::new()
         .delimiter(b'\t')
@@ -804,6 +807,7 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     (raw_data_merged, raw_data_missing)
 }
 
+#[tracing::instrument(skip(ctx, raw_data_merged, raw_data_missing))]
 fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -> Data {
     let chr_hg38 = raw_data_missing.idx("chr_hg38");
     let pos_hg38 = raw_data_missing.idx("pos_hg38");
