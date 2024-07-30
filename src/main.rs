@@ -526,22 +526,26 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
         });
 
     debug!("Reordering columns");
-    let new_order = [
-        raw_data.idx("chr_hg19"),
-        raw_data.idx("pos_hg19"),
-        raw_data.idx("ref"),
-        raw_data.idx("alt"),
-        raw_data.idx("effect_size"),
-        raw_data.idx("standard_error"),
-        raw_data.idx("EAF"),
-        raw_data.idx("pvalue"),
-        raw_data.idx("pvalue_het"),
-        raw_data.idx("N_total"),
-        raw_data.idx("N_case"),
-        raw_data.idx("N_ctrl"),
-        raw_data.idx("chr_hg38"),
-        raw_data.idx("pos_hg38"),
+    let new_headers = [
+        "chr_hg19",
+        "pos_hg19",
+        "ref",
+        "alt",
+        "effect_size",
+        "standard_error",
+        "EAF",
+        "pvalue",
+        "pvalue_het",
+        "N_total",
+        "N_case",
+        "N_ctrl",
+        "chr_hg38",
+        "pos_hg38",
     ];
+    let new_order = new_headers
+        .iter()
+        .map(|x| raw_data.idx(x))
+        .collect::<Vec<_>>();
     let nrows = raw_data.data.len();
     let data = std::mem::take(&mut raw_data.data);
     let new_data: Vec<MaybeUninit<Vec<String>>> =
@@ -556,8 +560,13 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
             .collect::<Vec<_>>();
         unsafe { &mut *new_data.as_ptr().add(i).cast_mut() }.write(new_r);
     });
+    raw_data.header = new_headers
+        .iter()
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>();
     raw_data.data =
         unsafe { std::mem::transmute::<Vec<MaybeUninit<Vec<String>>>, Vec<Vec<String>>>(new_data) };
+    debug!(len = raw_data.data.len(), "Raw data after bed matching");
 
     debug!("Reading dbSNP file");
     let dbsnp = flate2::read::GzDecoder::new(std::fs::File::open(&ctx.args.dbsnp_file).unwrap());
@@ -789,6 +798,7 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
             .collect::<Vec<_>>();
         unsafe { &mut *new_data.as_ptr().add(i).cast_mut() }.write(new_r);
     });
+    raw_data_merged.header = new_order.iter().map(|x| x.to_string()).collect::<Vec<_>>();
     raw_data_merged.data =
         unsafe { std::mem::transmute::<Vec<MaybeUninit<Vec<String>>>, Vec<Vec<String>>>(new_data) };
     debug!("Reordering columns");
@@ -817,6 +827,7 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
             .collect::<Vec<_>>();
         unsafe { &mut *new_data.as_ptr().add(i).cast_mut() }.write(new_r);
     });
+    raw_data_missing.header = new_order.iter().map(|x| x.to_string()).collect::<Vec<_>>();
     raw_data_missing.data =
         unsafe { std::mem::transmute::<Vec<MaybeUninit<Vec<String>>>, Vec<Vec<String>>>(new_data) };
     (raw_data_merged, raw_data_missing)
