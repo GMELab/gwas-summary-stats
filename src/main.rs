@@ -106,6 +106,7 @@ impl Data {
         f: impl Fn(&str) -> bool,
     ) -> impl Iterator<Item = &'_ [String]> {
         let idx = self.idx(key);
+        debug!(key, idx, "Matching rows");
         self.data
             .iter()
             .filter(move |x| f(x[idx].as_str()))
@@ -129,7 +130,7 @@ fn preformat(ctx: &Ctx) -> Data {
         .collect::<Vec<_>>();
     if rows.is_empty() {
         error!(
-            "No rows found in the GWAS formatting legend for trait_name={}.",
+            "No rows found in the GWAS formatting legend for trait_name={}",
             ctx.args.trait_name
         );
         panic!();
