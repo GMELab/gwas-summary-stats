@@ -63,7 +63,7 @@ pub struct Args {
     raw_input_dir: String,
     #[arg(short, long)]
     liftover: String,
-    #[arg(short = 'o', long)]
+    #[arg(long)]
     liftover_dir: String,
     #[arg(short = 'r', long)]
     grs_dir: String,
