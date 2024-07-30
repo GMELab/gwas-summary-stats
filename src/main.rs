@@ -223,7 +223,7 @@ fn preformat(ctx: &Ctx) -> Data {
         panic!();
     }
     .unwrap();
-    let mut header = contents
+    let header = contents
         .headers()
         .unwrap()
         .into_iter()
@@ -233,21 +233,22 @@ fn preformat(ctx: &Ctx) -> Data {
         error!("Raw input file has less than 5 columns, likely the column delimiter has been misspecified");
         panic!();
     }
-    for col in ASSIGN_COL_NAMES.iter() {
-        let val = ctx.sheet.get_from_row(row, col);
-        for r in header.iter_mut() {
-            if *r == *val {
-                *r = col.to_string();
-            }
-        }
-    }
-
     let data = contents.records().map(|x| x.unwrap()).collect::<Vec<_>>();
     let data = data
         .iter()
         .map(|x| x.iter().map(|x| x.to_string()).collect::<Vec<_>>())
         .collect::<Vec<_>>();
+    let na = "NA".to_string();
     let mut raw_data = Data { header, data };
+    for col in ASSIGN_COL_NAMES.iter() {
+        let idx = raw_data.idx_opt(col);
+        if idx.is_none() {
+            raw_data.header.push(col.to_string());
+            for r in raw_data.data.iter_mut() {
+                r.push(na.clone());
+            }
+        }
+    }
     debug!(header = ?raw_data.header, "Header");
     for chr in raw_data.col_mut("chr") {
         // a) Remove "chr" prefix
