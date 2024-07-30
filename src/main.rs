@@ -123,7 +123,6 @@ impl Data {
 }
 
 fn preformat(ctx: &Ctx) -> Data {
-    info!("Preformatting data");
     let rows = ctx
         .sheet
         .matching_rows("trait_name", |x| x == ctx.args.trait_name)
@@ -910,14 +909,21 @@ fn main() {
         .collect::<Vec<_>>();
     let data = Data { header, data };
     let ctx = Ctx { args, sheet: data };
+    info!(trait_name = %ctx.args.trait_name, "Starting pipeline");
+    info!("Starting preformatting");
     let mut raw_data = preformat(&ctx);
+    info!("Starting liftover");
     liftover(&ctx, &raw_data);
+    info!("Starting dbSNP matching");
     let (raw_data_merged, raw_data_missing) = dbsnp_matching(&ctx, &mut raw_data);
+    info!("Starting ref/alt check");
     let final_data = ref_alt_check(&ctx, raw_data_merged, raw_data_missing);
+    info!("Writing final data to {}", ctx.args.out_file);
     let file = std::fs::File::create(&ctx.args.out_file).unwrap();
     let mut writer = flate2::write::GzEncoder::new(&file, flate2::Compression::default());
     writeln!(writer, "{}", final_data.header.join("\t")).unwrap();
     for r in final_data.data {
         writeln!(writer, "{}", r.join("\t")).unwrap();
     }
+    info!("Pipeline complete");
 }
