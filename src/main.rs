@@ -119,6 +119,7 @@ impl Data {
 
     pub fn col_mut(&mut self, key: &str) -> impl Iterator<Item = &'_ mut String> {
         let idx = self.idx(key);
+        debug!(key, idx, "Mutating column");
         self.data.iter_mut().map(move |x| &mut x[idx])
     }
 }
