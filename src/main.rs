@@ -10,7 +10,7 @@ use std::{
         Mutex,
     },
 };
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 const GOOGLE_SHEETS_API_KEY: &str = "AIzaSyA91UNqny43WENob6M3VpLKS0ayr-H-Lcw";
 const COLS_MUST_BE_PRESENT: [&str; 20] = [
@@ -908,6 +908,7 @@ fn main() {
         })
         .collect::<Vec<_>>();
     let data = Data { header, data };
+    debug!("Header: {:?}", data.header);
     let ctx = Ctx { args, sheet: data };
     info!(trait_name = %ctx.args.trait_name, "Starting pipeline");
     info!("Starting preformatting");
