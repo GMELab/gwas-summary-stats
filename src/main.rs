@@ -297,6 +297,7 @@ fn preformat(ctx: &Ctx) -> Data {
                 && effect_size != "-inf"
         })
         .collect::<Vec<_>>();
+    debug!(len = raw_data.data.len(), "Raw data after e");
     // f) Convert OR to beta
     let effect_is_or = ctx.sheet.get_from_row(row, "effect_is_OR");
     let effect_sizes = raw_data
