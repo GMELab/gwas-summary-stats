@@ -59,7 +59,7 @@ pub struct Args {
     google_sheets_id: String,
     #[arg(short, long)]
     trait_name: String,
-    #[arg(short, long)]
+    #[arg(short = 'i', long)]
     raw_input_dir: String,
     #[arg(short, long)]
     liftover: String,
