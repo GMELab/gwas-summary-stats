@@ -344,8 +344,8 @@ fn preformat(ctx: &Ctx) -> Data {
     for var in ["total", "case", "ctrl"] {
         if !raw_data.header.contains(&format!("N_{}", var)) {
             raw_data.header.push(format!("N_{}", var));
-            for r in raw_data.col_mut(&format!("N_{}", var)) {
-                r.clone_from(&na);
+            for r in raw_data.data.iter_mut() {
+                r.push(na.clone());
             }
         }
     }
