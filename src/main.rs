@@ -243,6 +243,7 @@ fn preformat(ctx: &Ctx) -> Data {
     for col in ASSIGN_COL_NAMES.iter() {
         let idx = raw_data.idx_opt(col);
         if idx.is_none() {
+            debug!(col, "Assigning NA to missing column");
             raw_data.header.push(col.to_string());
             for r in raw_data.data.iter_mut() {
                 r.push(na.clone());
