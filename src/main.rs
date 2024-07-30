@@ -417,7 +417,7 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
         if pos_hg17 || pos_hg18 {
             std::process::Command::new(&ctx.args.liftover)
                 .arg(liftover_dir.join("input.bed"))
-                .arg(liftover_dir.join("1over.chain.gz"))
+                .arg(liftover_dir.join(if pos_hg17 { "hg17ToHg19" } else { "hg18ToHg19" }))
                 .arg(liftover_dir.join("input2.bed"))
                 .arg(liftover_dir.join("1unlifted.bed"))
                 .status()
@@ -438,7 +438,7 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
         }
         std::process::Command::new(&ctx.args.liftover)
             .arg(liftover_dir.join("input2.bed"))
-            .arg(liftover_dir.join("over.chain.gz"))
+            .arg(liftover_dir.join(if pos_hg38 { "hg38ToHg19" } else { "hg19ToHg38" }))
             .arg(liftover_dir.join("final.bed"))
             .arg(liftover_dir.join("unlifted.bed"))
             .status()
@@ -461,12 +461,12 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
         } else if pos_hg38 {
             std::fs::rename(
                 liftover_dir.join("final.bed"),
-                liftover_dir.join("hg38.bed"),
+                liftover_dir.join("hg19.bed"),
             )
             .unwrap();
             std::fs::rename(
                 liftover_dir.join("input2.bed"),
-                liftover_dir.join("hg19.bed"),
+                liftover_dir.join("hg38.bed"),
             )
             .unwrap();
         }
