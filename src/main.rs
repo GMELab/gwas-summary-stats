@@ -280,7 +280,7 @@ fn preformat(ctx: &Ctx) -> Data {
             let r = raw_data.get_from_row(x.as_slice(), "ref");
             let a = raw_data.get_from_row(x.as_slice(), "alt");
             let effect_size = raw_data.get_from_row(x.as_slice(), "effect_size");
-            debug!(?x, r, a, effect_size, "Checking ref, alt, and effect size");
+            // debug!(?x, r, a, effect_size, "Checking ref, alt, and effect size");
             // d) Remove SNPs with ambiguous ref or alt
             r != "I"
                 && r != "D"
