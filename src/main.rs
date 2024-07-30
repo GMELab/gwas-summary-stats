@@ -492,6 +492,7 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
 
 #[tracing::instrument(skip(ctx, raw_data))]
 fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
+    debug!("Reading hg19 and hg38 bed files");
     let mut hg19 = csv::ReaderBuilder::new()
         .delimiter(b'\t')
         .has_headers(false)
@@ -508,18 +509,23 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     raw_data.header.push("pos_hg19".to_string());
     raw_data.header.push("chr_hg38".to_string());
     raw_data.header.push("pos_hg38".to_string());
-    for ((r, hg19), hg38) in raw_data.data.iter_mut().zip(hg19.iter()).zip(hg38.iter()) {
-        let chr_hg19 = hg19.get(0).unwrap().to_string();
-        let pos_hg19 = hg19.get(2).unwrap().to_string();
-        let chr_hg38 = hg38.get(0).unwrap().to_string();
-        let pos_hg38 = hg38.get(2).unwrap().to_string();
-        r.push(chr_hg19);
-        r.push(pos_hg19);
-        r.push(chr_hg38);
-        r.push(pos_hg38);
-    }
+    raw_data
+        .data
+        .par_iter_mut()
+        .zip(hg19.par_iter())
+        .zip(hg38.par_iter())
+        .for_each(|((r, hg19), hg38)| {
+            let chr_hg19 = hg19.get(0).unwrap().to_string();
+            let pos_hg19 = hg19.get(2).unwrap().to_string();
+            let chr_hg38 = hg38.get(0).unwrap().to_string();
+            let pos_hg38 = hg38.get(2).unwrap().to_string();
+            r.push(chr_hg19);
+            r.push(pos_hg19);
+            r.push(chr_hg38);
+            r.push(pos_hg38);
+        });
 
-    debug!(header = ?raw_data.header, "Header");
+    debug!("Reordering columns");
     let new_order = [
         raw_data.idx("chr_hg19"),
         raw_data.idx("pos_hg19"),
@@ -553,6 +559,7 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     raw_data.data =
         unsafe { std::mem::transmute::<Vec<MaybeUninit<Vec<String>>>, Vec<Vec<String>>>(new_data) };
 
+    debug!("Reading dbSNP file");
     let dbsnp = flate2::read::GzDecoder::new(std::fs::File::open(&ctx.args.dbsnp_file).unwrap());
     let mut dbsnp = csv::ReaderBuilder::new()
         .delimiter(b'\t')
@@ -566,9 +573,11 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
         .collect::<Vec<_>>();
     let data = dbsnp
         .records()
+        .par_bridge()
         .map(|x| x.unwrap().iter().map(|x| x.to_string()).collect::<Vec<_>>())
         .collect::<Vec<_>>();
     let dbsnp = Data { header, data };
+    debug!("Merging dbSNP data");
     let dbsnp_idxs = [
         dbsnp.idx("chr"),
         dbsnp.idx("pos_hg19"),
@@ -636,6 +645,7 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
             Some(r)
         })
         .collect::<Vec<_>>();
+    debug!("Flipping alleles");
     let mut raw_data_flipped_data = std::mem::take(&mut raw_data_flipped.data);
     raw_data_flipped_data = raw_data_flipped_data
         .into_par_iter()
@@ -660,6 +670,7 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
             Some(r)
         })
         .collect::<Vec<_>>();
+    debug!("Merging flipped alleles");
     let unique_ids: HashSet<&str> = HashSet::from_iter(
         raw_data_merged
             .data
@@ -694,6 +705,7 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     raw_data_merged
         .data
         .retain(|x| seen.insert(x[unique_id_idx].as_str().to_string()));
+    debug!("Merging missing data");
     let new_order = [
         "rsid",
         "unique_id",
@@ -779,6 +791,7 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     });
     raw_data_merged.data =
         unsafe { std::mem::transmute::<Vec<MaybeUninit<Vec<String>>>, Vec<Vec<String>>>(new_data) };
+    debug!("Reordering columns");
     for i in new_order {
         if !raw_data_merged.header.contains(&i.to_string()) {
             raw_data_merged.header.push(i.to_string());
@@ -954,6 +967,6 @@ fn main() {
     for r in final_data.data {
         writeln!(writer, "{}", r.join("\t")).unwrap();
     }
-    drop(writer.finish().unwrap());
+    writer.finish().unwrap();
     info!("Pipeline complete");
 }
