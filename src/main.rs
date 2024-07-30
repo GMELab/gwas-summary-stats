@@ -271,6 +271,7 @@ fn preformat(ctx: &Ctx) -> Data {
     for a in raw_data.col_mut("alt") {
         *a = a.to_ascii_uppercase();
     }
+    debug!(len = raw_data.data.len(), "Raw data before d and e");
     let data = std::mem::take(&mut raw_data.data);
     raw_data.data = data
         .into_iter()
@@ -297,7 +298,7 @@ fn preformat(ctx: &Ctx) -> Data {
                 && effect_size != "-inf"
         })
         .collect::<Vec<_>>();
-    debug!(len = raw_data.data.len(), "Raw data after e");
+    debug!(len = raw_data.data.len(), "Raw data after d and e");
     // f) Convert OR to beta
     let effect_is_or = ctx.sheet.get_from_row(row, "effect_is_OR");
     let effect_sizes = raw_data
