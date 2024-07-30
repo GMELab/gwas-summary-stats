@@ -178,7 +178,11 @@ fn preformat(ctx: &Ctx) -> Data {
         );
         panic!();
     }
-    let raw_input_file = raw_input_dir.join(ctx.sheet.get_from_row(row, "file_path"));
+    let mut file_path = ctx.sheet.get_from_row(row, "file_path").as_str();
+    if file_path.starts_with('/') {
+        file_path = file_path.strip_prefix('/').unwrap();
+    }
+    let raw_input_file = raw_input_dir.join(file_path);
     if !raw_input_file.exists() {
         error!(
             "Raw input file {} does not exist",
