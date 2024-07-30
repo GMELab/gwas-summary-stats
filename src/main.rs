@@ -248,6 +248,7 @@ fn preformat(ctx: &Ctx) -> Data {
         .map(|x| x.iter().map(|x| x.to_string()).collect::<Vec<_>>())
         .collect::<Vec<_>>();
     let mut raw_data = Data { header, data };
+    debug!(header = ?raw_data.header, "Header");
     for chr in raw_data.col_mut("chr") {
         // a) Remove "chr" prefix
         if let Some(c) = chr.strip_prefix("chr") {
