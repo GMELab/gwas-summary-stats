@@ -949,9 +949,11 @@ fn main() {
     info!("Writing final data to {}", ctx.args.output_file);
     let file = std::fs::File::create(&ctx.args.output_file).unwrap();
     let mut writer = flate2::write::GzEncoder::new(&file, flate2::Compression::default());
+    debug!(len = final_data.data.len(), "Writing rows",);
     writeln!(writer, "{}", final_data.header.join("\t")).unwrap();
     for r in final_data.data {
         writeln!(writer, "{}", r.join("\t")).unwrap();
     }
+    drop(writer.finish().unwrap());
     info!("Pipeline complete");
 }
