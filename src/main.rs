@@ -503,6 +503,7 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
         r.push(pos_hg38);
     }
 
+    debug!(header = ?raw_data.header, "Header");
     let new_order = [
         raw_data.idx("chr_hg19"),
         raw_data.idx("pos_hg19"),
