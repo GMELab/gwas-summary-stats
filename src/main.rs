@@ -896,7 +896,10 @@ fn main() {
     let data: serde_json::Value = serde_json::from_str(&data).unwrap();
     let data = data["values"].as_array().unwrap();
     let header = data[0].as_array().unwrap();
-    let header = header.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+    let header = header
+        .iter()
+        .map(|x| x.as_str().unwrap().to_string())
+        .collect::<Vec<_>>();
     let data = data[1..]
         .iter()
         .map(|x| {
