@@ -457,32 +457,25 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
             .arg(liftover_dir.join("unlifted.bed"))
             .status()
             .unwrap();
-        if pos_hg17 || pos_hg18 || pos_hg19 {
-            let mut hg38 = std::fs::File::create(liftover_dir.join("hg38.bed")).unwrap();
-            for line in std::fs::read_to_string(liftover_dir.join("final.bed"))
+        let hg38_input = if pos_hg38 { "input2.bed" } else { "final.bed" };
+        let mut hg38 = std::fs::File::create(liftover_dir.join("hg38.bed")).unwrap();
+        for line in std::fs::read_to_string(liftover_dir.join(hg38_input))
+            .unwrap()
+            .lines()
+        {
+            writeln!(hg38, "{}", line.strip_prefix("chr").unwrap_or(line)).unwrap();
+        }
+        std::fs::remove_file(liftover_dir.join(hg38_input)).unwrap();
+        if pos_hg19 || pos_hg38 {
+            let hg19_input = if pos_hg38 { "final.bed" } else { "input2.bed" };
+            let mut hg19 = std::fs::File::create(liftover_dir.join("hg19.bed")).unwrap();
+            for line in std::fs::read_to_string(liftover_dir.join(hg19_input))
                 .unwrap()
                 .lines()
             {
-                writeln!(hg38, "{}", line.strip_prefix("chr").unwrap_or(line)).unwrap();
+                writeln!(hg19, "{}", line.strip_prefix("chr").unwrap_or(line)).unwrap();
             }
-            if pos_hg19 {
-                std::fs::rename(
-                    liftover_dir.join("input2.bed"),
-                    liftover_dir.join("hg19.bed"),
-                )
-                .unwrap();
-            }
-        } else if pos_hg38 {
-            std::fs::rename(
-                liftover_dir.join("final.bed"),
-                liftover_dir.join("hg19.bed"),
-            )
-            .unwrap();
-            std::fs::rename(
-                liftover_dir.join("input2.bed"),
-                liftover_dir.join("hg38.bed"),
-            )
-            .unwrap();
+            std::fs::remove_file(liftover_dir.join(hg19_input)).unwrap();
         }
     } else {
         error!("No position columns found in the raw data file");
@@ -508,6 +501,7 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     debug!(
         hg19 = hg19.len(),
         hg38 = hg38.len(),
+        raw_data = raw_data.data.len(),
         "Read hg19 and hg38 bed files"
     );
     raw_data.header.push("chr_hg19".to_string());
