@@ -240,6 +240,7 @@ fn preformat(ctx: &Ctx) -> Data {
         .collect::<Vec<_>>();
     let na = "NA".to_string();
     let mut raw_data = Data { header, data };
+    debug!(header = ?raw_data.header, "Header");
     for col in ASSIGN_COL_NAMES.iter() {
         let idx = raw_data.idx_opt(col);
         if idx.is_none() {
