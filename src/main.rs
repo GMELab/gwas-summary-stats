@@ -505,6 +505,11 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
         .from_path(std::env::current_dir().unwrap().join("hg38.bed"))
         .unwrap();
     let hg38 = hg38.records().map(|x| x.unwrap()).collect::<Vec<_>>();
+    debug!(
+        hg19 = hg19.len(),
+        hg38 = hg38.len(),
+        "Read hg19 and hg38 bed files"
+    );
     raw_data.header.push("chr_hg19".to_string());
     raw_data.header.push("pos_hg19".to_string());
     raw_data.header.push("chr_hg38".to_string());
