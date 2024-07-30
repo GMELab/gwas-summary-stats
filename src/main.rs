@@ -907,7 +907,7 @@ fn main() {
             x.as_array()
                 .unwrap()
                 .iter()
-                .map(|x| x.to_string())
+                .map(|x| x.as_str().unwrap().to_string())
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
