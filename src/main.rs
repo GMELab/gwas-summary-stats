@@ -372,6 +372,7 @@ fn preformat(ctx: &Ctx) -> Data {
     let hg_version = ctx.sheet.get_from_row(row, "hg_version");
     raw_data.header[pos] = format!("pos_{}", hg_version);
     raw_data.header[chr] = format!("chr_{}", hg_version);
+    debug!(header = ?raw_data.header, "Header");
     raw_data
 }
 
