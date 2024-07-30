@@ -63,6 +63,8 @@ pub struct Args {
     raw_input_dir: String,
     #[arg(short, long)]
     liftover: String,
+    #[arg(short = 'o', long)]
+    liftover_dir: String,
     #[arg(short = 'r', long)]
     grs_dir: String,
     #[arg(short, long)]
@@ -72,7 +74,7 @@ pub struct Args {
     #[arg(short, long)]
     fasta_ref: String,
     #[arg(short, long)]
-    out_file: String,
+    output_file: String,
 }
 
 pub struct Ctx {
@@ -377,7 +379,7 @@ fn preformat(ctx: &Ctx) -> Data {
 }
 
 fn liftover(ctx: &Ctx, raw_data: &Data) {
-    let liftover_dir = std::env::current_dir().unwrap();
+    let liftover_dir = std::path::Path::new(&ctx.args.liftover_dir);
     let mut bed = std::fs::File::create(liftover_dir.join("input.bed")).unwrap();
     let pos_hg17 = raw_data.header.contains(&"pos_hg17".to_string());
     let pos_hg18 = raw_data.header.contains(&"pos_hg18".to_string());
@@ -417,7 +419,11 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
         if pos_hg17 || pos_hg18 {
             std::process::Command::new(&ctx.args.liftover)
                 .arg(liftover_dir.join("input.bed"))
-                .arg(liftover_dir.join(if pos_hg17 { "hg17ToHg19" } else { "hg18ToHg19" }))
+                .arg(liftover_dir.join(if pos_hg17 {
+                    "hg17ToHg19.over.chain.gz"
+                } else {
+                    "hg18ToHg19.over.chain.gz"
+                }))
                 .arg(liftover_dir.join("input2.bed"))
                 .arg(liftover_dir.join("1unlifted.bed"))
                 .status()
@@ -438,7 +444,11 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
         }
         std::process::Command::new(&ctx.args.liftover)
             .arg(liftover_dir.join("input2.bed"))
-            .arg(liftover_dir.join(if pos_hg38 { "hg38ToHg19" } else { "hg19ToHg38" }))
+            .arg(liftover_dir.join(if pos_hg38 {
+                "hg38ToHg19.over.chain.gz"
+            } else {
+                "hg19ToHg38.over.chain.gz"
+            }))
             .arg(liftover_dir.join("final.bed"))
             .arg(liftover_dir.join("unlifted.bed"))
             .status()
@@ -930,8 +940,8 @@ fn main() {
     let (raw_data_merged, raw_data_missing) = dbsnp_matching(&ctx, &mut raw_data);
     info!("Starting ref/alt check");
     let final_data = ref_alt_check(&ctx, raw_data_merged, raw_data_missing);
-    info!("Writing final data to {}", ctx.args.out_file);
-    let file = std::fs::File::create(&ctx.args.out_file).unwrap();
+    info!("Writing final data to {}", ctx.args.output_file);
+    let file = std::fs::File::create(&ctx.args.output_file).unwrap();
     let mut writer = flate2::write::GzEncoder::new(&file, flate2::Compression::default());
     writeln!(writer, "{}", final_data.header.join("\t")).unwrap();
     for r in final_data.data {
