@@ -417,6 +417,10 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
     let pos_hg18 = raw_data.header.contains(&"pos_hg18".to_string());
     let pos_hg19 = raw_data.header.contains(&"pos_hg19".to_string());
     let pos_hg38 = raw_data.header.contains(&"pos_hg38".to_string());
+    debug!(
+        pos_hg17,
+        pos_hg18, pos_hg19, pos_hg38, "Checking position columns"
+    );
     if pos_hg17 || pos_hg18 || pos_hg19 || pos_hg38 {
         let chr_idx = raw_data.idx(if pos_hg17 {
             "chr_hg17"
@@ -486,6 +490,7 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
             .status()
             .unwrap();
         let hg38_input = if pos_hg38 { "input2.bed" } else { "final.bed" };
+        debug!(hg38_input, "Reading hg38 bed file");
         let mut hg38 = std::fs::File::create(liftover_dir.join("hg38.bed")).unwrap();
         for line in std::fs::read_to_string(liftover_dir.join(hg38_input))
             .unwrap()
@@ -496,6 +501,7 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
         std::fs::remove_file(liftover_dir.join(hg38_input)).unwrap();
         if pos_hg19 || pos_hg38 {
             let hg19_input = if pos_hg38 { "final.bed" } else { "input2.bed" };
+            debug!(hg19_input, "Reading hg19 bed file");
             let mut hg19 = std::fs::File::create(liftover_dir.join("hg19.bed")).unwrap();
             for line in std::fs::read_to_string(liftover_dir.join(hg19_input))
                 .unwrap()
