@@ -242,12 +242,10 @@ fn preformat(ctx: &Ctx) -> Data {
     let mut raw_data = Data { header, data };
     debug!(header = ?raw_data.header, "Header");
     for col in ASSIGN_COL_NAMES.iter() {
-        let idx = raw_data.idx_opt(col);
-        if idx.is_none() {
-            debug!(col, "Assigning NA to missing column");
-            raw_data.header.push(col.to_string());
-            for r in raw_data.data.iter_mut() {
-                r.push(na.clone());
+        let val = ctx.sheet.get_from_row(row, col);
+        if val != "NA" {
+            for r in raw_data.col_mut(val) {
+                *r = col.to_string();
             }
         }
     }
@@ -375,6 +373,28 @@ fn preformat(ctx: &Ctx) -> Data {
         if r[n_case] != "NA" && r[n_total] != "NA" && r[n_ctrl] == "NA" {
             r[n_ctrl] = (r[n_total].parse::<f64>().unwrap() - r[n_case].parse::<f64>().unwrap())
                 .to_string();
+        }
+    }
+    for var in [
+        "chr",
+        "pos",
+        "ref",
+        "alt",
+        "effect_size",
+        "standard_error",
+        "EAF",
+        "pvalue",
+        "pvalue_het",
+        "N_total",
+        "N_case",
+        "N_ctrl",
+    ] {
+        if !raw_data.header.contains(&var.to_string()) {
+            debug!(var, "Adding missing column");
+            raw_data.header.push(var.to_string());
+            for r in raw_data.data.iter_mut() {
+                r.push(na.clone());
+            }
         }
     }
     let pos = raw_data.idx("pos");
