@@ -616,7 +616,6 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
         .collect::<Vec<_>>();
     let data = dbsnp
         .records()
-        .par_bridge()
         .map(|x| x.unwrap().iter().map(|x| x.to_string()).collect::<Vec<_>>())
         .collect::<Vec<_>>();
     let dbsnp = Data { header, data };
