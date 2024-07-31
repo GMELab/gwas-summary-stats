@@ -246,7 +246,9 @@ fn preformat(ctx: &Ctx) -> Data {
         let val = ctx.sheet.get_from_row(row, col);
         if val != "NA" {
             for r in raw_data.header.iter_mut() {
-                *r = col.to_string();
+                if r == val {
+                    *r = col.to_string();
+                }
             }
         }
     }
