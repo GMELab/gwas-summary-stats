@@ -121,6 +121,7 @@ impl Data {
     }
 
     pub fn col_mut(&mut self, key: &str) -> impl Iterator<Item = &'_ mut String> {
+        debug!(key, "Mutating column");
         let idx = self.idx(key);
         debug!(key, idx, "Mutating column");
         self.data.iter_mut().map(move |x| &mut x[idx])
@@ -239,7 +240,6 @@ fn preformat(ctx: &Ctx) -> Data {
         .iter()
         .map(|x| x.iter().map(|x| x.to_string()).collect::<Vec<_>>())
         .collect::<Vec<_>>();
-    let na = "NA".to_string();
     let mut raw_data = Data { header, data };
     debug!(header = ?raw_data.header, "Header");
     for col in ASSIGN_COL_NAMES.iter() {
