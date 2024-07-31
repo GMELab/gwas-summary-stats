@@ -411,8 +411,9 @@ fn preformat(ctx: &Ctx) -> Data {
 
 #[tracing::instrument(skip(ctx, raw_data))]
 fn liftover(ctx: &Ctx, raw_data: &Data) {
+    let current_dir = std::env::current_dir().unwrap();
     let liftover_dir = std::path::Path::new(&ctx.args.liftover_dir);
-    let mut bed = std::fs::File::create(liftover_dir.join("input.bed")).unwrap();
+    let mut bed = std::fs::File::create(current_dir.join("input.bed")).unwrap();
     let pos_hg17 = raw_data.header.contains(&"pos_hg17".to_string());
     let pos_hg18 = raw_data.header.contains(&"pos_hg18".to_string());
     let pos_hg19 = raw_data.header.contains(&"pos_hg19".to_string());
@@ -454,18 +455,18 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
         drop(bed);
         if pos_hg17 || pos_hg18 {
             std::process::Command::new(&ctx.args.liftover)
-                .arg(liftover_dir.join("input.bed"))
+                .arg(current_dir.join("input.bed"))
                 .arg(liftover_dir.join(if pos_hg17 {
                     "hg17ToHg19.over.chain.gz"
                 } else {
                     "hg18ToHg19.over.chain.gz"
                 }))
-                .arg(liftover_dir.join("input2.bed"))
-                .arg(liftover_dir.join("1unlifted.bed"))
+                .arg(current_dir.join("input2.bed"))
+                .arg(current_dir.join("1unlifted.bed"))
                 .status()
                 .unwrap();
-            let mut hg19 = std::fs::File::create(liftover_dir.join("hg19.bed")).unwrap();
-            for line in std::fs::read_to_string(liftover_dir.join("input2.bed"))
+            let mut hg19 = std::fs::File::create(current_dir.join("hg19.bed")).unwrap();
+            for line in std::fs::read_to_string(current_dir.join("input2.bed"))
                 .unwrap()
                 .lines()
             {
@@ -473,26 +474,26 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
             }
         } else {
             std::fs::rename(
-                liftover_dir.join("input.bed"),
-                liftover_dir.join("input2.bed"),
+                current_dir.join("input.bed"),
+                current_dir.join("input2.bed"),
             )
             .unwrap();
         }
         std::process::Command::new(&ctx.args.liftover)
-            .arg(liftover_dir.join("input2.bed"))
+            .arg(current_dir.join("input2.bed"))
             .arg(liftover_dir.join(if pos_hg38 {
                 "hg38ToHg19.over.chain.gz"
             } else {
                 "hg19ToHg38.over.chain.gz"
             }))
-            .arg(liftover_dir.join("final.bed"))
-            .arg(liftover_dir.join("unlifted.bed"))
+            .arg(current_dir.join("final.bed"))
+            .arg(current_dir.join("unlifted.bed"))
             .status()
             .unwrap();
         let hg38_input = if pos_hg38 { "input2.bed" } else { "final.bed" };
         debug!(hg38_input, "Reading hg38 bed file");
-        let mut hg38 = std::fs::File::create(liftover_dir.join("hg38.bed")).unwrap();
-        for line in std::fs::read_to_string(liftover_dir.join(hg38_input))
+        let mut hg38 = std::fs::File::create(current_dir.join("hg38.bed")).unwrap();
+        for line in std::fs::read_to_string(current_dir.join(hg38_input))
             .unwrap()
             .lines()
         {
@@ -502,8 +503,8 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
         if pos_hg19 || pos_hg38 {
             let hg19_input = if pos_hg38 { "final.bed" } else { "input2.bed" };
             debug!(hg19_input, "Reading hg19 bed file");
-            let mut hg19 = std::fs::File::create(liftover_dir.join("hg19.bed")).unwrap();
-            for line in std::fs::read_to_string(liftover_dir.join(hg19_input))
+            let mut hg19 = std::fs::File::create(current_dir.join("hg19.bed")).unwrap();
+            for line in std::fs::read_to_string(current_dir.join(hg19_input))
                 .unwrap()
                 .lines()
             {
