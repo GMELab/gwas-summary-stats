@@ -323,7 +323,7 @@ fn preformat(ctx: &Ctx) -> Data {
             .zip(effect_sizes)
             .filter_map(|(mut r, e)| {
                 let l = e.ln();
-                if l.is_nan() {
+                if l.is_nan() || l.is_infinite() {
                     None
                 } else {
                     r[effect_size] = l.to_string();
@@ -499,7 +499,7 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
         {
             writeln!(hg38, "{}", line.strip_prefix("chr").unwrap_or(line)).unwrap();
         }
-        // std::fs::remove_file(liftover_dir.join(hg38_input)).unwrap();
+        std::fs::remove_file(liftover_dir.join(hg38_input)).unwrap();
         if pos_hg19 || pos_hg38 {
             let hg19_input = if pos_hg38 { "final.bed" } else { "input2.bed" };
             debug!(hg19_input, "Reading hg19 bed file");
@@ -510,7 +510,7 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
             {
                 writeln!(hg19, "{}", line.strip_prefix("chr").unwrap_or(line)).unwrap();
             }
-            // std::fs::remove_file(liftover_dir.join(hg19_input)).unwrap();
+            std::fs::remove_file(liftover_dir.join(hg19_input)).unwrap();
         }
     } else {
         error!("No position columns found in the raw data file");
