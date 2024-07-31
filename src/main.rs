@@ -89,6 +89,7 @@ pub struct Data {
 }
 
 impl Data {
+    #[track_caller]
     pub fn idx(&self, key: &str) -> usize {
         self.idx_opt(key).unwrap()
     }
