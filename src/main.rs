@@ -128,6 +128,44 @@ impl Data {
     }
 }
 
+fn read_raw_data(delim: &str, file: impl std::io::Read) -> Data {
+    let mut contents = if delim == "\t" || delim == "tab" {
+        csv::ReaderBuilder::new()
+            .delimiter(b'\t')
+            .has_headers(true)
+            .from_reader(file)
+    } else if delim == "," || delim == "comma" {
+        csv::ReaderBuilder::new()
+            .delimiter(b',')
+            .has_headers(true)
+            .from_reader(file)
+    } else if delim == "space" {
+        csv::ReaderBuilder::new()
+            .delimiter(b' ')
+            .has_headers(true)
+            .from_reader(file)
+    } else {
+        error!("Invalid column delimiter {}", delim);
+        panic!();
+    };
+    let header = contents
+        .headers()
+        .unwrap()
+        .into_iter()
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>();
+    if header.len() <= 4 {
+        error!("Raw input file has less than 5 columns, likely the column delimiter has been misspecified");
+        panic!();
+    }
+    let data = contents.records().map(|x| x.unwrap()).collect::<Vec<_>>();
+    let data = data
+        .iter()
+        .map(|x| x.iter().map(|x| x.to_string()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+    Data { header, data }
+}
+
 #[tracing::instrument(skip(ctx))]
 fn preformat(ctx: &Ctx) -> Data {
     let rows = ctx
@@ -204,43 +242,15 @@ fn preformat(ctx: &Ctx) -> Data {
         panic!();
     }
     info!(raw_input_file = %raw_input_file.to_string_lossy(), "Reading raw input file");
+    let gz = raw_input_file.to_string_lossy().ends_with(".gz");
     let delim = ctx.sheet.get_from_row(row, "column_delim");
-    let mut contents = if delim == "\t" || delim == "tab" {
-        csv::ReaderBuilder::new()
-            .delimiter(b'\t')
-            .has_headers(true)
-            .from_path(raw_input_file)
-    } else if delim == "," || delim == "comma" {
-        csv::ReaderBuilder::new()
-            .delimiter(b',')
-            .has_headers(true)
-            .from_path(raw_input_file)
-    } else if delim == "space" {
-        csv::ReaderBuilder::new()
-            .delimiter(b' ')
-            .has_headers(true)
-            .from_path(raw_input_file)
+    let file = std::fs::File::open(&raw_input_file).unwrap();
+    let mut raw_data = if gz {
+        let gz = flate2::read::GzDecoder::new(file);
+        read_raw_data(delim, gz)
     } else {
-        error!("Invalid column delimiter {}", delim);
-        panic!();
-    }
-    .unwrap();
-    let header = contents
-        .headers()
-        .unwrap()
-        .into_iter()
-        .map(|x| x.to_string())
-        .collect::<Vec<_>>();
-    if header.len() <= 4 {
-        error!("Raw input file has less than 5 columns, likely the column delimiter has been misspecified");
-        panic!();
-    }
-    let data = contents.records().map(|x| x.unwrap()).collect::<Vec<_>>();
-    let data = data
-        .iter()
-        .map(|x| x.iter().map(|x| x.to_string()).collect::<Vec<_>>())
-        .collect::<Vec<_>>();
-    let mut raw_data = Data { header, data };
+        read_raw_data(delim, file)
+    };
     debug!(header = ?raw_data.header, "Header");
     for col in ASSIGN_COL_NAMES.iter() {
         let val = ctx.sheet.get_from_row(row, col);
