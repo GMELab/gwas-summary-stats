@@ -665,7 +665,7 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
         raw_data.idx("pos_hg38"),
     ];
     let mut raw_data_merged = raw_data.clone();
-    let raw_data_data = std::mem::take(&mut raw_data_merged.data);
+    let raw_data_merged_data = std::mem::take(&mut raw_data_merged.data);
     for i in 0..dbsnp.header.len() {
         if !dbsnp_idxs.contains(&i) {
             debug!(i, header = dbsnp.header[i], "Adding missing column");
@@ -676,8 +676,8 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     let unique_id_idx = raw_data_merged.idx("unique_id");
     let mut raw_data_flipped = raw_data_merged.clone();
     debug!(header = ?raw_data_merged.header, "Header");
-    assert!(raw_data_merged.header.len() == raw_data_data[0].len());
-    raw_data_merged.data = raw_data_data
+    debug!(idxs = ?raw_data_idxs, "Raw data indexes");
+    raw_data_merged.data = raw_data_merged_data
         .into_par_iter()
         .filter_map(|mut r| {
             let key = (
