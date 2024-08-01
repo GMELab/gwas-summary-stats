@@ -416,6 +416,7 @@ fn preformat(ctx: &Ctx) -> Data {
     raw_data.header[pos] = format!("pos_{}", hg_version);
     raw_data.header[chr] = format!("chr_{}", hg_version);
     debug!(header = ?raw_data.header, "Header");
+    assert_eq!(raw_data.header.len(), raw_data.data[0].len());
     raw_data
 }
 
