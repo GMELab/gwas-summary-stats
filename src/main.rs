@@ -554,21 +554,24 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     raw_data.header.push("pos_hg19".to_string());
     raw_data.header.push("chr_hg38".to_string());
     raw_data.header.push("pos_hg38".to_string());
-    raw_data
-        .data
-        .par_iter_mut()
-        .zip(hg19.par_iter())
-        .zip(hg38.par_iter())
-        .for_each(|((r, hg19), hg38)| {
-            let chr_hg19 = hg19.get(0).unwrap().to_string();
-            let pos_hg19 = hg19.get(2).unwrap().to_string();
-            let chr_hg38 = hg38.get(0).unwrap().to_string();
-            let pos_hg38 = hg38.get(2).unwrap().to_string();
-            r.push(chr_hg19);
-            r.push(pos_hg19);
-            r.push(chr_hg38);
-            r.push(pos_hg38);
-        });
+    raw_data.data.par_iter_mut().enumerate().for_each(|(i, r)| {
+        let hg19 = hg19.get(i);
+        let hg38 = hg38.get(i);
+        if let Some(hg19) = hg19 {
+            r.push(hg19.get(0).unwrap().to_string());
+            r.push(hg19.get(2).unwrap().to_string());
+        } else {
+            r.push("NA".to_string());
+            r.push("NA".to_string());
+        }
+        if let Some(hg38) = hg38 {
+            r.push(hg38.get(0).unwrap().to_string());
+            r.push(hg38.get(2).unwrap().to_string());
+        } else {
+            r.push("NA".to_string());
+            r.push("NA".to_string());
+        }
+    });
 
     debug!("Reordering columns");
     let new_headers = [
