@@ -880,6 +880,14 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     raw_data_missing.header = new_order.iter().map(|x| x.to_string()).collect::<Vec<_>>();
     raw_data_missing.data =
         unsafe { std::mem::transmute::<Vec<MaybeUninit<Vec<String>>>, Vec<Vec<String>>>(new_data) };
+    for i in new_order {
+        if !raw_data_missing.header.contains(&i.to_string()) {
+            raw_data_missing.header.push(i.to_string());
+            for r in raw_data_missing.data.iter_mut() {
+                r.push("NA".to_string());
+            }
+        }
+    }
     assert_eq!(raw_data_merged.header.len(), raw_data_merged.data[0].len());
     assert_eq!(
         raw_data_missing.header.len(),
