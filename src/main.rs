@@ -668,12 +668,15 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     let raw_data_data = std::mem::take(&mut raw_data_merged.data);
     for i in 0..dbsnp.header.len() {
         if !dbsnp_idxs.contains(&i) {
+            debug!(i, header = dbsnp.header[i], "Adding missing column");
             raw_data_merged.header.push(dbsnp.header[i].clone());
         }
     }
     raw_data_merged.header.push("unique_id".to_string());
     let unique_id_idx = raw_data_merged.idx("unique_id");
     let mut raw_data_flipped = raw_data_merged.clone();
+    debug!(header = ?raw_data_merged.header, "Header");
+    assert!(raw_data_merged.header.len() == raw_data_data[0].len());
     raw_data_merged.data = raw_data_data
         .into_par_iter()
         .filter_map(|mut r| {
