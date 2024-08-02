@@ -542,18 +542,20 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
 #[tracing::instrument(skip(ctx, raw_data))]
 fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
     debug!("Reading hg19 and hg38 bed files");
-    let mut hg19 = csv::ReaderBuilder::new()
+    let mut hg19_file = csv::ReaderBuilder::new()
         .delimiter(b'\t')
         .has_headers(false)
         .from_path(std::env::current_dir().unwrap().join("hg19.bed"))
         .unwrap();
-    let hg19 = hg19.records().map(|x| x.unwrap()).collect::<Vec<_>>();
-    let mut hg38 = csv::ReaderBuilder::new()
+    let hg19 = hg19_file.records().map(|x| x.unwrap()).collect::<Vec<_>>();
+    drop(hg19_file);
+    let mut hg38_file = csv::ReaderBuilder::new()
         .delimiter(b'\t')
         .has_headers(false)
         .from_path(std::env::current_dir().unwrap().join("hg38.bed"))
         .unwrap();
-    let hg38 = hg38.records().map(|x| x.unwrap()).collect::<Vec<_>>();
+    let hg38 = hg38_file.records().map(|x| x.unwrap()).collect::<Vec<_>>();
+    drop(hg38_file);
     debug!(
         hg19 = hg19.len(),
         hg38 = hg38.len(),
@@ -585,6 +587,8 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
             r.push("NA".to_string());
         }
     });
+    drop(hg19);
+    drop(hg38);
 
     debug!("Reordering columns");
     let new_headers = [
@@ -828,9 +832,10 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
     );
     let pos_hg19 = raw_data.idx("pos_hg19");
     let pos_hg38 = raw_data.idx("pos_hg38");
+    let header = raw_data.header.clone();
     let raw_data_missing = raw_data
         .data
-        .iter()
+        .into_iter()
         .filter(|r| {
             !raw_unique_ids.contains(&(
                 r[raw_data_idxs[0]].as_str(),
@@ -842,10 +847,9 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
                 && r[pos_hg19] != "NaN"
                 && r[pos_hg38] != "NaN"
         })
-        .cloned()
         .collect::<Vec<_>>();
     let mut raw_data_missing = Data {
-        header: raw_data.header.clone(),
+        header,
         data: raw_data_missing,
     };
     debug!(
@@ -1069,7 +1073,7 @@ fn main() {
     let ctx = Ctx { args, sheet: data };
     info!(trait_name = %ctx.args.trait_name, "Starting pipeline");
     info!("Starting preformatting");
-    let mut raw_data = preformat(&ctx);
+    let raw_data = preformat(&ctx);
     info!("Starting liftover");
     liftover(&ctx, &raw_data);
     info!("Starting dbSNP matching");
