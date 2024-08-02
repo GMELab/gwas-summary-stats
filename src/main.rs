@@ -937,7 +937,7 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
         .unwrap()
         .extend((0..max).map(|_| MaybeUninit::uninit()));
     std::thread::scope(|s| {
-        for _ in 0..num_cpus::get() {
+        for _ in 0..(num_cpus::get() / 2) {
             s.spawn(|| loop {
                 let j = atomic.fetch_add(1, Ordering::Relaxed);
                 if j >= max {
