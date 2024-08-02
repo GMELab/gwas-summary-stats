@@ -885,6 +885,7 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
             ));
         }
     });
+    assert_eq!(raw_data_merged.header.len(), raw_data_merged.data[0].len());
     let data = std::mem::take(&mut raw_data_missing.data);
     let new_data: Vec<MaybeUninit<Vec<String>>> =
         (0..data.len()).map(|_| MaybeUninit::uninit()).collect();
