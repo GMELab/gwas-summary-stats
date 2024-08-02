@@ -867,13 +867,6 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     raw_data_merged.header = new_order.iter().map(|x| x.to_string()).collect::<Vec<_>>();
     raw_data_merged.data =
         unsafe { std::mem::transmute::<Vec<MaybeUninit<Vec<String>>>, Vec<Vec<String>>>(new_data) };
-    let raw_data_idxs = [
-        raw_data_missing.idx("chr_hg19"),
-        raw_data_missing.idx("pos_hg19"),
-        raw_data_missing.idx("ref"),
-        raw_data_missing.idx("alt"),
-        raw_data_missing.idx("pos_hg38"),
-    ];
     for i in 0..dbsnp.header.len() {
         if !dbsnp_idxs.contains(&i) {
             debug!(i, header = dbsnp.header[i], "Adding missing column");
@@ -881,21 +874,11 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
         }
     }
     raw_data_missing.data.par_iter_mut().for_each(|r| {
-        let key = (
-            r[raw_data_idxs[0]].as_str(),
-            r[raw_data_idxs[1]].as_str(),
-            r[raw_data_idxs[2]].as_str(),
-            r[raw_data_idxs[3]].as_str(),
-            r[raw_data_idxs[4]].as_str(),
-        );
-        let dbsnp_data = *dbsnp_map
-            .get(&key)
-            .unwrap_or_else(|| dbsnp_map.get(&(key.0, key.1, key.3, key.2, key.4)).unwrap());
-        (0..dbsnp.header.len()).for_each(|i| {
+        for i in 0..dbsnp.header.len() {
             if !dbsnp_idxs.contains(&i) {
-                r.push(dbsnp_data[i].clone());
+                r.push("NA".to_string());
             }
-        });
+        }
     });
     let data = std::mem::take(&mut raw_data_missing.data);
     let new_data: Vec<MaybeUninit<Vec<String>>> =
