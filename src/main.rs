@@ -885,6 +885,7 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
             ));
         }
     });
+    debug!(header = ?raw_data_merged.header);
     assert_eq!(
         raw_data_missing.header.len(),
         raw_data_missing.data[0].len()
