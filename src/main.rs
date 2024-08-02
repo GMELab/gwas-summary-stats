@@ -879,11 +879,11 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
             if !dbsnp_idxs.contains(&i) {
                 r.push("NA".to_string());
             }
-            r.push(format!(
-                "{}_{}_{}_{}",
-                r[raw_data_idxs[0]], r[raw_data_idxs[1]], r[raw_data_idxs[2]], r[raw_data_idxs[3]]
-            ));
         }
+        r.push(format!(
+            "{}_{}_{}_{}",
+            r[raw_data_idxs[0]], r[raw_data_idxs[1]], r[raw_data_idxs[2]], r[raw_data_idxs[3]]
+        ));
     });
     debug!(header = ?raw_data_missing.header);
     assert_eq!(
