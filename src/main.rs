@@ -649,6 +649,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
         .records()
         .map(|x| x.unwrap().iter().map(|x| x.to_string()).collect::<Vec<_>>())
         .collect::<Vec<_>>();
+    drop(dbsnp);
     let dbsnp = Data { header, data };
     debug!("Merging dbSNP data");
     let dbsnp_idxs = [
