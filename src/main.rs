@@ -893,6 +893,28 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
             raw_data_missing.header.push(dbsnp.header[i].clone());
         }
     }
+    let raw_data_idxs = [
+        raw_data_missing.idx("chr_hg19"),
+        raw_data_missing.idx("pos_hg19"),
+        raw_data_missing.idx("ref"),
+        raw_data_missing.idx("alt"),
+        raw_data_missing.idx("pos_hg38"),
+    ];
+    raw_data_missing.data.par_iter_mut().for_each(|r| {
+        let key = (
+            r[raw_data_idxs[0]].as_str(),
+            r[raw_data_idxs[1]].as_str(),
+            r[raw_data_idxs[2]].as_str(),
+            r[raw_data_idxs[3]].as_str(),
+            r[raw_data_idxs[4]].as_str(),
+        );
+        let dbsnp_data = *dbsnp_map.get(&key).unwrap();
+        (0..dbsnp.header.len()).for_each(|i| {
+            if !dbsnp_idxs.contains(&i) {
+                r.push(dbsnp_data[i].clone());
+            }
+        });
+    });
     debug!(header = ?raw_data_merged.header);
     assert_eq!(raw_data_merged.header.len(), raw_data_merged.data[0].len());
     debug!(header = ?raw_data_missing.header);
