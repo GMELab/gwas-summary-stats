@@ -888,7 +888,9 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
             r[raw_data_idxs[3]].as_str(),
             r[raw_data_idxs[4]].as_str(),
         );
-        let dbsnp_data = *dbsnp_map.get(&key).unwrap();
+        let dbsnp_data = *dbsnp_map
+            .get(&key)
+            .unwrap_or_else(|| dbsnp_map.get(&(key.0, key.1, key.3, key.2, key.4)).unwrap());
         (0..dbsnp.header.len()).for_each(|i| {
             if !dbsnp_idxs.contains(&i) {
                 r.push(dbsnp_data[i].clone());
