@@ -831,9 +831,21 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
         header: raw_data.header.clone(),
         data: raw_data_missing,
     };
-    debug!(header = raw_data.header, len = raw_data.header.len, "Raw data header");
-    debug!(header = raw_data_merged.header, len = raw_data_merged.header.len, "Merged data header");
-    debug!(header = raw_data_missing.header, len = raw_data_missing.header.len, "Missing data header");
+    debug!(
+        header = ?raw_data.header,
+        len = raw_data.header.len(),
+        "Raw data header"
+    );
+    debug!(
+        header = ?raw_data_merged.header,
+        len = raw_data_merged.header.len(),
+        "Merged data header"
+    );
+    debug!(
+        header = ?raw_data_missing.header,
+        len = raw_data_missing.header.len(),
+        "Missing data header"
+    );
     debug!("Reordering columns");
     let data = std::mem::take(&mut raw_data_merged.data);
     let new_data: Vec<MaybeUninit<Vec<String>>> =
