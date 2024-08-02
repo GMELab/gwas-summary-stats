@@ -890,7 +890,6 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
         raw_data_missing.header.len(),
         raw_data_missing.data[0].len()
     );
-    panic!();
     let data = std::mem::take(&mut raw_data_missing.data);
     let new_data: Vec<MaybeUninit<Vec<String>>> =
         (0..data.len()).map(|_| MaybeUninit::uninit()).collect();
