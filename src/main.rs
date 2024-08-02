@@ -832,6 +832,8 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
         data: raw_data_missing,
     };
     debug!(header = raw_data.header, len = raw_data.header.len, "Raw data header");
+    debug!(header = raw_data_merged.header, len = raw_data_merged.header.len, "Merged data header");
+    debug!(header = raw_data_missing.header, len = raw_data_missing.header.len, "Missing data header");
     debug!("Reordering columns");
     let data = std::mem::take(&mut raw_data_merged.data);
     let new_data: Vec<MaybeUninit<Vec<String>>> =
@@ -853,14 +855,6 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     raw_data_merged.header = new_order.iter().map(|x| x.to_string()).collect::<Vec<_>>();
     raw_data_merged.data =
         unsafe { std::mem::transmute::<Vec<MaybeUninit<Vec<String>>>, Vec<Vec<String>>>(new_data) };
-    for i in new_order {
-        if !raw_data_merged.header.contains(&i.to_string()) {
-            raw_data_merged.header.push(i.to_string());
-            for r in raw_data_merged.data.iter_mut() {
-                r.push("NA".to_string());
-            }
-        }
-    }
     let data = std::mem::take(&mut raw_data_missing.data);
     let new_data: Vec<MaybeUninit<Vec<String>>> =
         (0..data.len()).map(|_| MaybeUninit::uninit()).collect();
@@ -881,13 +875,10 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     raw_data_missing.header = new_order.iter().map(|x| x.to_string()).collect::<Vec<_>>();
     raw_data_missing.data =
         unsafe { std::mem::transmute::<Vec<MaybeUninit<Vec<String>>>, Vec<Vec<String>>>(new_data) };
-    for i in new_order {
-        if !raw_data_missing.header.contains(&i.to_string()) {
-            debug!(i, "Adding missing column");
-            raw_data_missing.header.push(i.to_string());
-            for r in raw_data_missing.data.iter_mut() {
-                r.push("NA".to_string());
-            }
+    for i in 0..dbsnp.header.len() {
+        if !dbsnp_idxs.contains(&i) {
+            debug!(i, header = dbsnp.header[i], "Adding missing column");
+            raw_data_merged.header.push(dbsnp.header[i].clone());
         }
     }
     debug!(header = ?raw_data_merged.header);
