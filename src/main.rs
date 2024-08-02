@@ -953,6 +953,7 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
         .iter()
         .map(|r| format!("chr{}:{}-{}", r[chr_hg38], r[pos_hg38], r[pos_hg38]))
         .collect::<Vec<_>>();
+    debug!(len = inputs.len(), "Running samtools");
     let max = inputs.len();
     let atomic = AtomicUsize::new(0);
     let nucleotides = Mutex::new(Vec::with_capacity(max));
@@ -961,14 +962,14 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
         .unwrap()
         .extend((0..max).map(|_| MaybeUninit::uninit()));
     std::thread::scope(|s| {
-        for _ in 0..num_cpus::get().max(10) {
+        for _ in 0..num_cpus::get().max(1) {
             s.spawn(|| loop {
                 let j = atomic.fetch_add(1, Ordering::Relaxed);
                 if j >= max {
                     break;
                 }
                 let input = &inputs[j];
-                debug!(input, "Running samatools");
+                debug!(input, "Running samtools");
                 let output = std::process::Command::new(&ctx.args.samtools)
                     .arg("faidx")
                     .arg(&ctx.args.fasta_ref)
