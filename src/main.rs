@@ -890,7 +890,7 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     for i in 0..dbsnp.header.len() {
         if !dbsnp_idxs.contains(&i) {
             debug!(i, header = dbsnp.header[i], "Adding missing column");
-            raw_data_merged.header.push(dbsnp.header[i].clone());
+            raw_data_missing.header.push(dbsnp.header[i].clone());
         }
     }
     debug!(header = ?raw_data_merged.header);
