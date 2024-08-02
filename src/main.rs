@@ -365,9 +365,14 @@ fn preformat(ctx: &Ctx) -> Data {
     for var in ["total", "case", "ctrl"] {
         if !raw_data.header.contains(&format!("N_{}", var)) {
             raw_data.header.push(format!("N_{}", var));
-            for r in raw_data.data.iter_mut() {
-                r.push(na.clone());
-            }
+        }
+    }
+    let header_len = raw_data.header.len();
+    for r in raw_data.data.iter_mut() {
+        let res = header_len - r.capacity();
+        r.reserve_exact(res);
+        for _ in 0..res {
+            r.push(na.clone());
         }
     }
     // compile case control or total sample sizes if inoformation is available
@@ -405,9 +410,14 @@ fn preformat(ctx: &Ctx) -> Data {
         if !raw_data.header.contains(&var.to_string()) {
             debug!(var, "Adding missing column");
             raw_data.header.push(var.to_string());
-            for r in raw_data.data.iter_mut() {
-                r.push(na.clone());
-            }
+        }
+    }
+    let header_len = raw_data.header.len();
+    for r in raw_data.data.iter_mut() {
+        let res = header_len - r.capacity();
+        r.reserve_exact(res);
+        for _ in 0..res {
+            r.push(na.clone());
         }
     }
     let pos = raw_data.idx("pos");
@@ -530,7 +540,7 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
 }
 
 #[tracing::instrument(skip(ctx, raw_data))]
-fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
+fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
     debug!("Reading hg19 and hg38 bed files");
     let mut hg19 = csv::ReaderBuilder::new()
         .delimiter(b'\t')
@@ -550,11 +560,14 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
         raw_data = raw_data.data.len(),
         "Read hg19 and hg38 bed files"
     );
-    raw_data.header.push("chr_hg19".to_string());
-    raw_data.header.push("pos_hg19".to_string());
-    raw_data.header.push("chr_hg38".to_string());
-    raw_data.header.push("pos_hg38".to_string());
+    raw_data.header.extend(
+        ["chr_hg19", "pos_hg19", "chr_hg38", "pos_hg38"]
+            .iter()
+            .map(|x| x.to_string()),
+    );
+    let header_len = raw_data.header.len();
     raw_data.data.par_iter_mut().enumerate().for_each(|(i, r)| {
+        r.reserve_exact(header_len - r.capacity());
         let hg19 = hg19.get(i);
         let hg38 = hg38.get(i);
         if let Some(hg19) = hg19 {
@@ -681,9 +694,11 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
     let mut raw_data_flipped = raw_data_merged.clone();
     debug!(header = ?raw_data_merged.header, "Header");
     debug!(idxs = ?raw_data_idxs, "Raw data indexes");
+    let header_len = raw_data_merged.header.len();
     raw_data_merged.data = raw_data_merged_data
         .into_par_iter()
         .filter_map(|mut r| {
+            r.reserve_exact(header_len - r.capacity());
             let key = (
                 r[raw_data_idxs[0]].as_str(),
                 r[raw_data_idxs[1]].as_str(),
@@ -706,9 +721,11 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
         .collect::<Vec<_>>();
     debug!("Flipping alleles");
     let mut raw_data_flipped_data = std::mem::take(&mut raw_data_flipped.data);
+    let header_len = raw_data_flipped.header.len();
     raw_data_flipped_data = raw_data_flipped_data
         .into_par_iter()
         .filter_map(|mut r| {
+            r.reserve_exact(header_len - r.capacity());
             let key = (
                 r[raw_data_merged_flipped_idxs[0]].as_str(),
                 r[raw_data_merged_flipped_idxs[1]].as_str(),
@@ -874,7 +891,9 @@ fn dbsnp_matching(ctx: &Ctx, raw_data: &mut Data) -> (Data, Data) {
         }
     }
     raw_data_missing.header.push("unique_id".to_string());
+    let header_len = raw_data_missing.header.len();
     raw_data_missing.data.par_iter_mut().for_each(|r| {
+        r.reserve_exact(header_len - r.capacity());
         for i in 0..dbsnp.header.len() {
             if !dbsnp_idxs.contains(&i) {
                 r.push("NA".to_string());
@@ -1054,7 +1073,7 @@ fn main() {
     info!("Starting liftover");
     liftover(&ctx, &raw_data);
     info!("Starting dbSNP matching");
-    let (raw_data_merged, raw_data_missing) = dbsnp_matching(&ctx, &mut raw_data);
+    let (raw_data_merged, raw_data_missing) = dbsnp_matching(&ctx, raw_data);
     info!("Starting ref/alt check");
     let final_data = ref_alt_check(&ctx, raw_data_merged, raw_data_missing);
     info!("Writing final data to {}", ctx.args.output_file);
