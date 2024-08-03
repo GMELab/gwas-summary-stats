@@ -961,6 +961,7 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
         .lock()
         .unwrap()
         .extend((0..max).map(|_| MaybeUninit::uninit()));
+    let len = Mutex::new(0);
     std::thread::scope(|s| {
         for _ in 0..num_cpus::get().max(1) {
             s.spawn(|| loop {
@@ -987,10 +988,19 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
                         }
                     })
                     .collect::<Vec<_>>();
+                let l = n.len();
+                *len.lock().unwrap() += l;
                 nucleotides.lock().unwrap()[j].write(n);
+                debug!(
+                    input,
+                    len = l,
+                    total_len = *len.lock().unwrap(),
+                    "Finished samtools"
+                );
             });
         }
     });
+    debug!(len = *len.lock().unwrap(), "Finished samtools");
     let nucleotides = unsafe {
         std::mem::transmute::<Vec<MaybeUninit<Vec<String>>>, Vec<Vec<String>>>(
             nucleotides.into_inner().unwrap(),
