@@ -291,7 +291,7 @@ fn preformat(ctx: &Ctx) -> Data {
     debug!(len = raw_data.data.len(), "Raw data before d and e");
     let data = std::mem::take(&mut raw_data.data);
     raw_data.data = data
-        .into_iter()
+        .into_par_iter()
         .filter(|x| {
             let r = raw_data.get_from_row(x.as_slice(), "ref");
             let a = raw_data.get_from_row(x.as_slice(), "alt");
@@ -341,7 +341,7 @@ fn preformat(ctx: &Ctx) -> Data {
         let data = std::mem::take(&mut raw_data.data);
         let effect_size = raw_data.idx("effect_size");
         raw_data.data = data
-            .into_iter()
+            .into_par_iter()
             .zip(effect_sizes)
             .filter_map(|(mut r, e)| {
                 let l = e.ln();
@@ -381,18 +381,18 @@ fn preformat(ctx: &Ctx) -> Data {
         }
     }
     let header_len = raw_data.header.len();
-    for r in raw_data.data.iter_mut() {
+    raw_data.data.par_iter_mut().for_each(|r| {
         let res = header_len - r.capacity();
         r.reserve_exact(res);
         for _ in 0..res {
             r.push(na.clone());
         }
-    }
+    });
     // compile case control or total sample sizes if inoformation is available
     let n_case = raw_data.idx("N_case");
     let n_ctrl = raw_data.idx("N_ctrl");
     let n_total = raw_data.idx("N_total");
-    for r in raw_data.data.iter_mut() {
+    raw_data.data.par_iter_mut().for_each(|r| {
         if r[n_case] != "NA" && r[n_ctrl] != "NA" {
             r[n_total] =
                 (r[n_case].parse::<f64>().unwrap() + r[n_ctrl].parse::<f64>().unwrap()).to_string();
@@ -405,7 +405,7 @@ fn preformat(ctx: &Ctx) -> Data {
             r[n_ctrl] = (r[n_total].parse::<f64>().unwrap() - r[n_case].parse::<f64>().unwrap())
                 .to_string();
         }
-    }
+    });
     for var in [
         "chr",
         "pos",
@@ -426,13 +426,13 @@ fn preformat(ctx: &Ctx) -> Data {
         }
     }
     let header_len = raw_data.header.len();
-    for r in raw_data.data.iter_mut() {
+    raw_data.data.par_iter_mut().for_each(|r| {
         let res = header_len - r.capacity();
         r.reserve_exact(res);
         for _ in 0..res {
             r.push(na.clone());
         }
-    }
+    });
     let pos = raw_data.idx("pos");
     let chr = raw_data.idx("chr");
     let hg_version = ctx.sheet.get_from_row(row, "hg_version");
@@ -772,7 +772,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
             .map(|x| x[unique_id_idx].as_str()),
     );
     raw_data_flipped.data = raw_data_flipped_data
-        .into_iter()
+        .into_par_iter()
         .filter(|x| !unique_ids.contains(x[unique_id_idx].as_str()))
         .collect::<Vec<_>>();
     let alt = raw_data_flipped.idx("alt");
@@ -823,10 +823,10 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
         "gnomAD_AF_EAS",
         "gnomAD_AF_SAS",
     ];
-    let raw_unique_ids: HashSet<(&str, &str, &str, &str)> = HashSet::from_iter(
+    let raw_unique_ids: HashSet<(&str, &str, &str, &str)> = HashSet::from_par_iter(
         raw_data_merged
             .data
-            .iter()
+            .par_iter()
             .map(|r| {
                 (
                     r[raw_data_idxs[0]].as_str(),
@@ -835,7 +835,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
                     r[raw_data_idxs[3]].as_str(),
                 )
             })
-            .chain(raw_data_merged.data.iter().map(|r| {
+            .chain(raw_data_merged.data.par_iter().map(|r| {
                 (
                     r[raw_data_idxs[0]].as_str(),
                     r[raw_data_idxs[1]].as_str(),
@@ -849,7 +849,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
     let header = raw_data.header.clone();
     let raw_data_missing = raw_data
         .data
-        .into_iter()
+        .into_par_iter()
         .filter(|r| {
             !raw_unique_ids.contains(&(
                 r[raw_data_idxs[0]].as_str(),
@@ -975,8 +975,12 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
         .unwrap()
         .extend((0..max).map(|_| MaybeUninit::uninit()));
     let len = Mutex::new(0);
+    let num_threads = std::env::var("SAMTOOLS_THREADS")
+        .map(|s| s.parse().expect("SAMTOOLS_THREADS is not a number"))
+        .unwrap_or_else(|_| num_cpus::get())
+        .clamp(1, num_cpus::get());
     std::thread::scope(|s| {
-        for _ in 0..num_cpus::get().max(1) {
+        for _ in 0..num_threads {
             s.spawn(|| {
                 loop {
                     let j = atomic.fetch_add(1, Ordering::Relaxed);
@@ -995,7 +999,6 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
                         .unwrap();
                     let output = String::from_utf8(output.stdout).unwrap();
                     debug!(output = output);
-                    continue;
                     let n = output
                         .lines()
                         .map(|l| {
