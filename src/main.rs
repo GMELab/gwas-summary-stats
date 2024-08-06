@@ -1010,14 +1010,12 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
                     debug!(chunk, "Ran samtools");
                     let output = String::from_utf8(output.stdout).unwrap();
                     let mut nucleotides = nucleotides.lock().unwrap();
-                    for (idx, l) in output.lines().enumerate() {
-                        if !l.starts_with('>') {
-                            nucleotides[idx + j].write(if l.len() > 1 {
-                                "N".to_string()
-                            } else {
-                                l.to_uppercase()
-                            });
-                        }
+                    for (idx, l) in output.lines().filter(|x| !x.starts_with('>')).enumerate() {
+                        nucleotides[idx + j].write(if l.len() > 1 {
+                            "N".to_string()
+                        } else {
+                            l.to_uppercase()
+                        });
                     }
                     debug!(chunk, "Finished samtools");
                 }
