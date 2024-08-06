@@ -674,7 +674,8 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
     ];
     debug!("Creating dbsnp map");
     let dbsnp_map: HashMap<(&str, &str, &str, &str, &str), &Vec<String>> =
-        HashMap::from_par_iter(dbsnp.data.par_iter().map(|x| {
+    // this is faster synchronous
+        HashMap::from_iter(dbsnp.data.iter().map(|x| {
             (
                 (
                     x[dbsnp_idxs[0]].as_str(),
@@ -825,6 +826,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
         "gnomAD_AF_EAS",
         "gnomAD_AF_SAS",
     ];
+    debug!("Constructing raw unique ids");
     let raw_unique_ids: HashSet<(&str, &str, &str, &str)> = HashSet::from_par_iter(
         raw_data_merged
             .data
@@ -848,6 +850,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
     );
     let pos_hg19 = raw_data.idx("pos_hg19");
     let pos_hg38 = raw_data.idx("pos_hg38");
+    debug!("Constructing missing data");
     let header = raw_data.header.clone();
     let raw_data_missing = raw_data
         .data
