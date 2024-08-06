@@ -969,78 +969,78 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
     debug!(len = inputs.len(), "Running samtools");
     let max = inputs.len();
     let atomic = AtomicUsize::new(0);
-    let nucleotides = Mutex::new(Vec::with_capacity(max));
-    nucleotides
-        .lock()
-        .unwrap()
-        .extend((0..max).map(|_| MaybeUninit::uninit()));
     let num_threads = std::env::var("SAMTOOLS_THREADS")
         .map(|s| s.parse().expect("SAMTOOLS_THREADS is not a number"))
         .unwrap_or_else(|_| num_cpus::get())
         .clamp(1, num_cpus::get());
+    let nucleotides = Mutex::new(Vec::with_capacity(max));
+    nucleotides
+        .lock()
+        .unwrap()
+        .extend((0..num_threads).map(|_| MaybeUninit::uninit()));
+    let chunk_size = (max + num_threads - 1) / num_threads;
     std::thread::scope(|s| {
-        for _ in 0..num_threads {
-            s.spawn(|| {
-                loop {
-                    let j = atomic.fetch_add(1, Ordering::Relaxed);
-                    if j >= max {
-                        break;
-                    }
-                    let input = &inputs[j];
-                    debug!(j, input, "Running samtools");
-                    let output = std::process::Command::new(&ctx.args.samtools)
-                        .arg("faidx")
-                        .arg(&ctx.args.fasta_ref)
-                        .arg(input)
-                        .output()
-                        .unwrap();
-                    let output = String::from_utf8(output.stdout).unwrap();
-                    debug!(j, output);
-                    let n = output
-                        .lines()
-                        .map(|l| {
-                            if l.split(' ').next().unwrap().len() > 1 {
-                                "N".to_string()
-                            } else {
-                                l.to_uppercase()
-                            }
-                        })
-                        .collect::<Vec<_>>();
-                    debug!(?n);
-                    let l = n.len();
-                    nucleotides.lock().unwrap()[j].write(n);
-                    debug!(input, len = l, "Finished samtools");
+        for i in 0..num_threads {
+            let inputs = &inputs;
+            let nucleotides = &nucleotides;
+            s.spawn(move || {
+                let j = i * chunk_size;
+                let input = &inputs[j..j + chunk_size];
+                debug!(j, "Running samtools");
+                let mut cmd = std::process::Command::new(&ctx.args.samtools);
+                cmd.arg("faidx");
+                cmd.arg(&ctx.args.fasta_ref);
+                for i in input {
+                    cmd.arg(i);
                 }
+                let output = cmd.output().unwrap();
+                let output = String::from_utf8(output.stdout).unwrap();
+                debug!(j, output);
+                let mut nucleotides = nucleotides.lock().unwrap();
+                for (idx, l) in output.lines().enumerate() {
+                    if !l.starts_with('>') {
+                        nucleotides[idx + j].write(if l.len() > 1 {
+                            "N".to_string()
+                        } else {
+                            l.to_uppercase()
+                        });
+                    }
+                }
+                debug!(j, "Finished samtools");
             });
         }
     });
     debug!("Finished samtools");
-    let nucleotides = unsafe {
-        std::mem::transmute::<Vec<MaybeUninit<Vec<String>>>, Vec<Vec<String>>>(
-            nucleotides.into_inner().unwrap(),
-        )
-    };
+    let nucleotides: Vec<Vec<String>> =
+        unsafe { std::mem::transmute(nucleotides.into_inner().unwrap()) };
+    let nucleotides = nucleotides.into_iter().flatten().collect::<Vec<_>>();
+    debug!("Flattened nucleotides");
     let ref_ = raw_data_merged.idx("ref");
     let alt = raw_data_merged.idx("alt");
     let effect_size = raw_data_merged.idx("effect_size");
     let eaf = raw_data_merged.idx("EAF");
-    for (mut d, n) in raw_data_missing
+    raw_data_merged
         .data
-        .into_iter()
-        .zip(nucleotides.into_iter().flatten())
-    {
-        if d[alt] == n {
-            let (one, two) = d.split_at_mut(alt.max(ref_));
-            let min = alt.min(ref_);
-            let max = alt.max(ref_);
-            std::mem::swap(&mut one[min], &mut two[max]);
-            let es = d[effect_size].parse::<f64>().unwrap();
-            d[effect_size] = (-es).to_string();
-            let e = d[eaf].parse::<f64>().unwrap();
-            d[eaf] = (1.0 - e).to_string();
-        }
-        raw_data_merged.data.push(d);
-    }
+        .par_extend(
+            raw_data_missing
+                .data
+                .into_par_iter()
+                .zip(nucleotides)
+                .map(|(mut d, n)| {
+                    if d[alt] == n {
+                        let (one, two) = d.split_at_mut(alt.max(ref_));
+                        let min = alt.min(ref_);
+                        let max = alt.max(ref_);
+                        std::mem::swap(&mut one[min], &mut two[max]);
+                        let es = d[effect_size].parse::<f64>().unwrap();
+                        d[effect_size] = (-es).to_string();
+                        let e = d[eaf].parse::<f64>().unwrap();
+                        d[eaf] = (1.0 - e).to_string();
+                    }
+                    d
+                }),
+        );
+    debug!("Merged missing data");
     raw_data_merged
 }
 
