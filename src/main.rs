@@ -995,7 +995,7 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
                         .output()
                         .unwrap();
                     let output = String::from_utf8(output.stdout).unwrap();
-                    debug!(output = output);
+                    debug!(output);
                     let n = output
                         .lines()
                         .map(|l| {
@@ -1006,6 +1006,7 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
                             }
                         })
                         .collect::<Vec<_>>();
+                    debug!(?n);
                     let l = n.len();
                     nucleotides.lock().unwrap()[j].write(n);
                     debug!(input, len = l, "Finished samtools");
