@@ -1,6 +1,3 @@
-use clap::Parser;
-use itertools::Itertools;
-use rayon::prelude::*;
 use std::{
     collections::{HashMap, HashSet},
     io::Write,
@@ -10,6 +7,10 @@ use std::{
         Mutex,
     },
 };
+
+use clap::Parser;
+use itertools::Itertools;
+use rayon::prelude::*;
 use tracing::{debug, error, info, warn};
 
 const GOOGLE_SHEETS_API_KEY: &str = "AIzaSyA91UNqny43WENob6M3VpLKS0ayr-H-Lcw";
@@ -58,34 +59,34 @@ pub struct Args {
     #[arg(short, long)]
     google_sheets_id: String,
     #[arg(short, long)]
-    trait_name: String,
+    trait_name:       String,
     #[arg(short = 'i', long)]
-    raw_input_dir: String,
+    raw_input_dir:    String,
     #[arg(short, long)]
-    liftover: String,
+    liftover:         String,
     #[arg(long)]
-    liftover_dir: String,
+    liftover_dir:     String,
     #[arg(short = 'r', long)]
-    grs_dir: String,
+    grs_dir:          String,
     #[arg(short, long)]
-    dbsnp_file: String,
+    dbsnp_file:       String,
     #[arg(short, long)]
-    samtools: String,
+    samtools:         String,
     #[arg(short, long)]
-    fasta_ref: String,
+    fasta_ref:        String,
     #[arg(short, long)]
-    output_file: String,
+    output_file:      String,
 }
 
 pub struct Ctx {
-    args: Args,
+    args:  Args,
     sheet: Data,
 }
 
 #[derive(Clone)]
 pub struct Data {
     header: Vec<String>,
-    data: Vec<Vec<String>>,
+    data:   Vec<Vec<String>>,
 }
 
 impl Data {
@@ -155,7 +156,10 @@ fn read_raw_data(delim: &str, file: impl std::io::Read) -> Data {
         .map(|x| x.to_string())
         .collect::<Vec<_>>();
     if header.len() <= 4 {
-        error!("Raw input file has less than 5 columns, likely the column delimiter has been misspecified");
+        error!(
+            "Raw input file has less than 5 columns, likely the column delimiter has been \
+             misspecified"
+        );
         panic!();
     }
     let data = contents.records().map(|x| x.unwrap()).collect::<Vec<_>>();
@@ -320,10 +324,18 @@ fn preformat(ctx: &Ctx) -> Data {
         .map(|x| x.parse::<f64>().unwrap())
         .collect::<Vec<_>>();
     if effect_is_or == "N" && effect_sizes.iter().all(|x| *x > 0.0) {
-        warn!("All effect sizes are positive yet effect_is_OR has been set to N. Please double check that effect estimates from the raw data file are indeed regression coefficients and not odds ratios");
+        warn!(
+            "All effect sizes are positive yet effect_is_OR has been set to N. Please double \
+             check that effect estimates from the raw data file are indeed regression \
+             coefficients and not odds ratios"
+        );
     }
     if effect_is_or == "Y" && effect_sizes.iter().any(|x| *x < 0.0) {
-        warn!("Some effect sizes are negative yet effect_is_OR has been set to Y. Please double check that effect estimates from the raw data file are indeed odds or hazard ratios and not regression coefficients");
+        warn!(
+            "Some effect sizes are negative yet effect_is_OR has been set to Y. Please double \
+             check that effect estimates from the raw data file are indeed odds or hazard ratios \
+             and not regression coefficients"
+        );
     }
     if effect_is_or == "Y" {
         let data = std::mem::take(&mut raw_data.data);
@@ -361,7 +373,8 @@ fn preformat(ctx: &Ctx) -> Data {
         }
     }
     let na = "NA".to_string();
-    // if no sample sizes indicated and gwas legend input is NA then set all three columns to NA
+    // if no sample sizes indicated and gwas legend input is NA then set all three
+    // columns to NA
     for var in ["total", "case", "ctrl"] {
         if !raw_data.header.contains(&format!("N_{}", var)) {
             raw_data.header.push(format!("N_{}", var));
@@ -964,39 +977,45 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
     let len = Mutex::new(0);
     std::thread::scope(|s| {
         for _ in 0..num_cpus::get().max(1) {
-            s.spawn(|| loop {
-                let j = atomic.fetch_add(1, Ordering::Relaxed);
-                if j >= max {
-                    break;
+            s.spawn(|| {
+                loop {
+                    let j = atomic.fetch_add(1, Ordering::Relaxed);
+                    if j >= max {
+                        break;
+                    }
+                    let input = &inputs[j];
+                    debug!(input, "Running samtools");
+                    // let output = std::process::Command::new(&ctx.args.samtools)
+                    let output = std::process::Command::new("/usr/bin/time")
+                        .arg(&ctx.args.samtools)
+                        .arg("faidx")
+                        .arg(&ctx.args.fasta_ref)
+                        .arg(input)
+                        .output()
+                        .unwrap();
+                    let output = String::from_utf8(output.stdout).unwrap();
+                    debug!(output = output);
+                    continue;
+                    let n = output
+                        .lines()
+                        .map(|l| {
+                            if l.split(' ').next().unwrap().len() > 1 {
+                                "N".to_string()
+                            } else {
+                                l.to_uppercase()
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let l = n.len();
+                    *len.lock().unwrap() += l;
+                    nucleotides.lock().unwrap()[j].write(n);
+                    debug!(
+                        input,
+                        len = l,
+                        total_len = *len.lock().unwrap(),
+                        "Finished samtools"
+                    );
                 }
-                let input = &inputs[j];
-                debug!(input, "Running samtools");
-                let output = std::process::Command::new(&ctx.args.samtools)
-                    .arg("faidx")
-                    .arg(&ctx.args.fasta_ref)
-                    .arg(input)
-                    .output()
-                    .unwrap();
-                let output = String::from_utf8(output.stdout).unwrap();
-                let n = output
-                    .lines()
-                    .map(|l| {
-                        if l.split(' ').next().unwrap().len() > 1 {
-                            "N".to_string()
-                        } else {
-                            l.to_uppercase()
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                let l = n.len();
-                *len.lock().unwrap() += l;
-                nucleotides.lock().unwrap()[j].write(n);
-                debug!(
-                    input,
-                    len = l,
-                    total_len = *len.lock().unwrap(),
-                    "Finished samtools"
-                );
             });
         }
     });
