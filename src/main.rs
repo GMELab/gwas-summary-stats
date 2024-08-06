@@ -672,6 +672,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
         dbsnp.idx("alt"),
         dbsnp.idx("pos_hg38"),
     ];
+    debug!("Creating dbsnp map");
     let dbsnp_map: HashMap<(&str, &str, &str, &str, &str), &Vec<String>> =
         HashMap::from_iter(dbsnp.data.iter().map(|x| {
             (
@@ -685,6 +686,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
                 x,
             )
         }));
+    debug!("Getting raw data indexes");
     let raw_data_idxs = [
         raw_data.idx("chr_hg19"),
         raw_data.idx("pos_hg19"),
@@ -968,16 +970,17 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
         .collect::<Vec<_>>();
     let num_inputs = inputs.len();
     let chunk = AtomicUsize::new(0);
+    let cpus = num_cpus::get() * 8;
     let num_threads = std::env::var("SAMTOOLS_THREADS")
         .map(|s| s.parse().expect("SAMTOOLS_THREADS is not a number"))
-        .unwrap_or_else(|_| num_cpus::get())
-        .clamp(1, num_cpus::get());
+        .unwrap_or(cpus)
+        .clamp(1, cpus);
     let nucleotides = Mutex::new(Vec::with_capacity(num_inputs));
     nucleotides
         .lock()
         .unwrap()
         .extend((0..num_inputs).map(|_| MaybeUninit::uninit()));
-    let chunk_size = 2000;
+    let chunk_size = 5000;
     let chunks = (num_inputs + chunk_size - 1) / chunk_size;
     debug!(
         num_threads,
