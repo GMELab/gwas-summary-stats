@@ -998,16 +998,16 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
                     }
                     let j = chunk * chunk_size;
                     let input = &inputs[j..j + chunk_size];
-                    debug!(j, "Got input");
+                    debug!(chunk, "Got input");
                     let mut cmd = std::process::Command::new(&ctx.args.samtools);
                     cmd.arg("faidx");
                     cmd.arg(&ctx.args.fasta_ref);
                     for i in input {
                         cmd.arg(i);
                     }
-                    debug!(j, "Constructed samtools command");
+                    debug!(chunk, "Constructed samtools command");
                     let output = cmd.output().unwrap();
-                    debug!(j, "Ran samtools");
+                    debug!(chunk, "Ran samtools");
                     let output = String::from_utf8(output.stdout).unwrap();
                     let mut nucleotides = nucleotides.lock().unwrap();
                     for (idx, l) in output.lines().enumerate() {
@@ -1019,7 +1019,7 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
                             });
                         }
                     }
-                    debug!(j, "Finished samtools");
+                    debug!(chunk, "Finished samtools");
                 }
             });
         }
