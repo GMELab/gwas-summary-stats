@@ -973,7 +973,7 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
         .collect::<Vec<_>>();
     let num_inputs = inputs.len();
     let chunk = AtomicUsize::new(0);
-    let cpus = num_cpus::get() * 8;
+    let cpus = num_cpus::get() * 4;
     let num_threads = std::env::var("SAMTOOLS_THREADS")
         .map(|s| s.parse().expect("SAMTOOLS_THREADS is not a number"))
         .unwrap_or(cpus)
