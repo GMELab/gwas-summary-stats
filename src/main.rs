@@ -974,7 +974,6 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
         .lock()
         .unwrap()
         .extend((0..max).map(|_| MaybeUninit::uninit()));
-    let len = Mutex::new(0);
     let num_threads = std::env::var("SAMTOOLS_THREADS")
         .map(|s| s.parse().expect("SAMTOOLS_THREADS is not a number"))
         .unwrap_or_else(|_| num_cpus::get())
@@ -988,10 +987,8 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
                         break;
                     }
                     let input = &inputs[j];
-                    debug!(input, "Running samtools");
-                    // let output = std::process::Command::new(&ctx.args.samtools)
-                    let output = std::process::Command::new("/usr/bin/time")
-                        .arg(&ctx.args.samtools)
+                    debug!(j, input, "Running samtools");
+                    let output = std::process::Command::new(&ctx.args.samtools)
                         .arg("faidx")
                         .arg(&ctx.args.fasta_ref)
                         .arg(input)
@@ -1010,19 +1007,13 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
                         })
                         .collect::<Vec<_>>();
                     let l = n.len();
-                    *len.lock().unwrap() += l;
                     nucleotides.lock().unwrap()[j].write(n);
-                    debug!(
-                        input,
-                        len = l,
-                        total_len = *len.lock().unwrap(),
-                        "Finished samtools"
-                    );
+                    debug!(input, len = l, "Finished samtools");
                 }
             });
         }
     });
-    debug!(len = *len.lock().unwrap(), "Finished samtools");
+    debug!("Finished samtools");
     let nucleotides = unsafe {
         std::mem::transmute::<Vec<MaybeUninit<Vec<String>>>, Vec<Vec<String>>>(
             nucleotides.into_inner().unwrap(),
