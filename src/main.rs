@@ -674,8 +674,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
     ];
     debug!("Creating dbsnp map");
     let dbsnp_map: HashMap<(&str, &str, &str, &str, &str), &Vec<String>> =
-    // this is faster synchronous
-        HashMap::from_iter(dbsnp.data.iter().map(|x| {
+        HashMap::from_par_iter(dbsnp.data.par_iter().map(|x| {
             (
                 (
                     x[dbsnp_idxs[0]].as_str(),
