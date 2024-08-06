@@ -976,7 +976,7 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
     nucleotides
         .lock()
         .unwrap()
-        .extend((0..num_threads).map(|_| MaybeUninit::uninit()));
+        .extend((0..num_inputs).map(|_| MaybeUninit::uninit()));
     let chunk_size = 2000;
     let chunks = (num_inputs + chunk_size - 1) / chunk_size;
     debug!(
@@ -1002,7 +1002,6 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
                     }
                     let output = cmd.output().unwrap();
                     let output = String::from_utf8(output.stdout).unwrap();
-                    debug!(j, output);
                     let mut nucleotides = nucleotides.lock().unwrap();
                     for (idx, l) in output.lines().enumerate() {
                         if !l.starts_with('>') {
@@ -1013,15 +1012,15 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
                             });
                         }
                     }
+                    drop(nucleotides);
                     debug!(j, "Finished samtools");
                 }
             });
         }
     });
     debug!("Finished samtools");
-    let nucleotides: Vec<Vec<String>> =
+    let nucleotides: Vec<String> =
         unsafe { std::mem::transmute(nucleotides.into_inner().unwrap()) };
-    let nucleotides = nucleotides.into_iter().flatten().collect::<Vec<_>>();
     debug!("Flattened nucleotides");
     let ref_ = raw_data_merged.idx("ref");
     let alt = raw_data_merged.idx("alt");
