@@ -966,47 +966,55 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
         .iter()
         .map(|r| format!("chr{}:{}-{}", r[chr_hg38], r[pos_hg38], r[pos_hg38]))
         .collect::<Vec<_>>();
-    debug!(len = inputs.len(), "Running samtools");
-    let max = inputs.len();
-    let atomic = AtomicUsize::new(0);
+    let num_inputs = inputs.len();
+    let chunk = AtomicUsize::new(0);
     let num_threads = std::env::var("SAMTOOLS_THREADS")
         .map(|s| s.parse().expect("SAMTOOLS_THREADS is not a number"))
         .unwrap_or_else(|_| num_cpus::get())
         .clamp(1, num_cpus::get());
-    let nucleotides = Mutex::new(Vec::with_capacity(max));
+    let nucleotides = Mutex::new(Vec::with_capacity(num_inputs));
     nucleotides
         .lock()
         .unwrap()
         .extend((0..num_threads).map(|_| MaybeUninit::uninit()));
-    let chunk_size = (max + num_threads - 1) / num_threads;
+    let chunk_size = 2000;
+    let chunks = (num_inputs + chunk_size - 1) / chunk_size;
+    debug!(
+        num_threads,
+        num_inputs, chunk_size, chunks, "Running samtools"
+    );
     std::thread::scope(|s| {
-        for i in 0..num_threads {
-            let inputs = &inputs;
-            let nucleotides = &nucleotides;
-            s.spawn(move || {
-                let j = i * chunk_size;
-                let input = &inputs[j..j + chunk_size];
-                debug!(j, "Running samtools");
-                let mut cmd = std::process::Command::new(&ctx.args.samtools);
-                cmd.arg("faidx");
-                cmd.arg(&ctx.args.fasta_ref);
-                for i in input {
-                    cmd.arg(i);
-                }
-                let output = cmd.output().unwrap();
-                let output = String::from_utf8(output.stdout).unwrap();
-                debug!(j, output);
-                let mut nucleotides = nucleotides.lock().unwrap();
-                for (idx, l) in output.lines().enumerate() {
-                    if !l.starts_with('>') {
-                        nucleotides[idx + j].write(if l.len() > 1 {
-                            "N".to_string()
-                        } else {
-                            l.to_uppercase()
-                        });
+        for _ in 0..num_threads {
+            s.spawn(|| {
+                loop {
+                    let chunk = chunk.fetch_add(1, Ordering::Relaxed);
+                    if chunk >= chunks {
+                        break;
                     }
+                    let j = chunk * chunk_size;
+                    let input = &inputs[j..j + chunk_size];
+                    debug!(j, "Running samtools");
+                    let mut cmd = std::process::Command::new(&ctx.args.samtools);
+                    cmd.arg("faidx");
+                    cmd.arg(&ctx.args.fasta_ref);
+                    for i in input {
+                        cmd.arg(i);
+                    }
+                    let output = cmd.output().unwrap();
+                    let output = String::from_utf8(output.stdout).unwrap();
+                    debug!(j, output);
+                    let mut nucleotides = nucleotides.lock().unwrap();
+                    for (idx, l) in output.lines().enumerate() {
+                        if !l.starts_with('>') {
+                            nucleotides[idx + j].write(if l.len() > 1 {
+                                "N".to_string()
+                            } else {
+                                l.to_uppercase()
+                            });
+                        }
+                    }
+                    debug!(j, "Finished samtools");
                 }
-                debug!(j, "Finished samtools");
             });
         }
     });
