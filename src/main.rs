@@ -997,7 +997,8 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
                         break;
                     }
                     let j = chunk * chunk_size;
-                    let input = &inputs[j..j + chunk_size];
+                    let end = (j + chunk_size).min(num_inputs);
+                    let input = &inputs[j..end];
                     debug!(chunk, "Got input");
                     let mut cmd = std::process::Command::new(&ctx.args.samtools);
                     cmd.arg("faidx");
