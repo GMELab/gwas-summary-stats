@@ -3,10 +3,7 @@ use std::{
     io::Write,
     mem::MaybeUninit,
     path::Path,
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Mutex,
-    },
+    sync::Mutex,
 };
 
 use clap::Parser;
@@ -571,50 +568,62 @@ fn liftover(ctx: &Ctx, raw_data: &Data) {
 #[tracing::instrument(skip(ctx, raw_data))]
 fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
     debug!("Reading hg19 and hg38 bed files");
-    let mut hg19_file = csv::ReaderBuilder::new()
-        .delimiter(b'\t')
-        .has_headers(false)
-        .from_path(std::env::current_dir().unwrap().join("hg19.bed"))
-        .unwrap();
-    let hg19 = hg19_file.records().map(|x| x.unwrap()).collect::<Vec<_>>();
-    drop(hg19_file);
-    let mut hg38_file = csv::ReaderBuilder::new()
-        .delimiter(b'\t')
-        .has_headers(false)
-        .from_path(std::env::current_dir().unwrap().join("hg38.bed"))
-        .unwrap();
-    let hg38 = hg38_file.records().map(|x| x.unwrap()).collect::<Vec<_>>();
-    drop(hg38_file);
+    let hg19 = {
+        if raw_data.header.contains(&"chr_hg19".to_string()) {
+            None
+        } else {
+            raw_data.header.push("chr_hg19".to_string());
+            raw_data.header.push("pos_hg19".to_string());
+            let mut hg19_file = csv::ReaderBuilder::new()
+                .delimiter(b'\t')
+                .has_headers(false)
+                .from_path(std::env::current_dir().unwrap().join("hg19.bed"))
+                .unwrap();
+            Some(hg19_file.records().map(|x| x.unwrap()).collect::<Vec<_>>())
+        }
+    };
+    let hg38 = {
+        if raw_data.header.contains(&"chr_hg38".to_string()) {
+            None
+        } else {
+            raw_data.header.push("chr_hg38".to_string());
+            raw_data.header.push("pos_hg38".to_string());
+            let mut hg38_file = csv::ReaderBuilder::new()
+                .delimiter(b'\t')
+                .has_headers(false)
+                .from_path(std::env::current_dir().unwrap().join("hg38.bed"))
+                .unwrap();
+            Some(hg38_file.records().map(|x| x.unwrap()).collect::<Vec<_>>())
+        }
+    };
     debug!(
-        hg19 = hg19.len(),
-        hg38 = hg38.len(),
         raw_data = raw_data.data.len(),
         "Read hg19 and hg38 bed files"
     );
-    let has_hg19 = raw_data.header.contains(&"chr_hg19".to_string());
-    let has_hg38 = raw_data.header.contains(&"chr_hg38".to_string());
     let header_len = raw_data.header.len();
-    raw_data.data.par_iter_mut().enumerate().for_each(|(i, r)| {
-        r.reserve_exact(header_len - r.capacity());
-        let hg19 = hg19.get(i);
-        let hg38 = hg38.get(i);
-        if let Some(hg19) = hg19 {
-            r.push(hg19.get(0).unwrap().to_string());
-            r.push(hg19.get(2).unwrap().to_string());
-        } else {
-            r.push("NA".to_string());
-            r.push("NA".to_string());
-        }
-        if let Some(hg38) = hg38 {
-            r.push(hg38.get(0).unwrap().to_string());
-            r.push(hg38.get(2).unwrap().to_string());
-        } else {
-            r.push("NA".to_string());
-            r.push("NA".to_string());
-        }
-    });
-    drop(hg19);
-    drop(hg38);
+    raw_data
+        .data
+        .par_iter_mut()
+        .enumerate()
+        .for_each(move |(i, r)| {
+            r.reserve_exact(header_len - r.capacity());
+            let hg19 = hg19.as_ref().and_then(|x| x.get(i));
+            let hg38 = hg38.as_ref().and_then(|x| x.get(i));
+            if let Some(hg19) = hg19 {
+                r.push(hg19.get(0).unwrap().to_string());
+                r.push(hg19.get(2).unwrap().to_string());
+            } else {
+                r.push("NA".to_string());
+                r.push("NA".to_string());
+            }
+            if let Some(hg38) = hg38 {
+                r.push(hg38.get(0).unwrap().to_string());
+                r.push(hg38.get(2).unwrap().to_string());
+            } else {
+                r.push("NA".to_string());
+                r.push("NA".to_string());
+            }
+        });
 
     debug!("Reordering columns");
     raw_data.reorder(&[
