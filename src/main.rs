@@ -418,7 +418,7 @@ fn preformat(ctx: &Ctx) -> Data {
                 .to_string();
         }
     });
-    for var in [
+    let new_order = [
         "chr",
         "pos",
         "ref",
@@ -431,20 +431,36 @@ fn preformat(ctx: &Ctx) -> Data {
         "N_total",
         "N_case",
         "N_ctrl",
-    ] {
-        if !raw_data.header.contains(&var.to_string()) {
-            debug!(var, "Adding missing column");
-            raw_data.header.push(var.to_string());
-        }
-    }
-    let header_len = raw_data.header.len();
-    raw_data.data.par_iter_mut().for_each(|r| {
-        let res = header_len - r.capacity();
-        r.reserve_exact(res);
-        for _ in 0..res {
-            r.push(na.clone());
-        }
-    });
+    ];
+    let new_order_idxs = new_order
+        .iter()
+        .map(|x| raw_data.idx_opt(x))
+        .collect::<Vec<_>>();
+    let new_len = new_order.len();
+    let data = raw_data
+        .data
+        .into_par_iter()
+        .map(|mut r| {
+            let mut new_r = Vec::with_capacity(new_len);
+            let mut r = unsafe { std::mem::transmute::<Vec<String>, Vec<MaybeUninit<String>>>(r) };
+            for idx in &new_order_idxs {
+                match idx {
+                    Some(idx) => {
+                        let v = unsafe {
+                            std::mem::replace(&mut r[*idx], MaybeUninit::uninit()).assume_init()
+                        };
+                        new_r.push(v);
+                    },
+                    None => new_r.push("NA".to_string()),
+                }
+            }
+            new_r
+        })
+        .collect::<Vec<_>>();
+    let mut raw_data = Data {
+        header: new_order.iter().map(|x| x.to_string()).collect::<Vec<_>>(),
+        data,
+    };
     let pos = raw_data.idx("pos");
     let chr = raw_data.idx("chr");
     let hg_version = ctx.sheet.get_from_row(row, "hg_version");
@@ -1131,8 +1147,8 @@ fn main() {
     liftover(&ctx, &raw_data);
     info!("Starting dbSNP matching");
     let (raw_data_merged, raw_data_missing) = dbsnp_matching(&ctx, raw_data);
-    raw_data_merged.write(&output_dir.join("raw_data_merged.txt.gz"));
-    raw_data_missing.write(&output_dir.join("raw_data_missing.txt.gz"));
+    raw_data_merged.write(output_dir.join("raw_data_merged.txt.gz"));
+    raw_data_missing.write(output_dir.join("raw_data_missing.txt.gz"));
     info!("Starting ref/alt check");
     let final_data = ref_alt_check(&ctx, raw_data_merged, raw_data_missing);
     info!("Writing final data to {}", ctx.args.output_file);
