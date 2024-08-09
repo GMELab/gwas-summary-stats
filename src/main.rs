@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     io::Write,
     mem::MaybeUninit,
+    path::Path,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Mutex,
@@ -126,6 +127,17 @@ impl Data {
         let idx = self.idx(key);
         debug!(key, idx, "Mutating column");
         self.data.iter_mut().map(move |x| &mut x[idx])
+    }
+
+    pub fn write(&self, name: impl AsRef<Path>) {
+        let file = std::fs::File::create(name).unwrap();
+        let mut writer = flate2::write::GzEncoder::new(&file, flate2::Compression::default());
+        debug!(len = self.data.len(), "Writing rows",);
+        writeln!(writer, "{}", self.header.join("\t")).unwrap();
+        for r in self.data {
+            writeln!(writer, "{}", r.join("\t")).unwrap();
+        }
+        writer.finish().unwrap();
     }
 }
 
@@ -1112,21 +1124,17 @@ fn main() {
     let ctx = Ctx { args, sheet: data };
     info!(trait_name = %ctx.args.trait_name, "Starting pipeline");
     info!("Starting preformatting");
+    let output_dir = Path::new(&ctx.args.output_dir).parent().unwrap();
     let raw_data = preformat(&ctx);
     info!("Starting liftover");
     liftover(&ctx, &raw_data);
     info!("Starting dbSNP matching");
     let (raw_data_merged, raw_data_missing) = dbsnp_matching(&ctx, raw_data);
+    raw_data_merged.write(&output_dir.join("raw_data_merged.txt"));
+    raw_data_missing.write(&output_dir.join("raw_data_missing.txt"));
     info!("Starting ref/alt check");
     let final_data = ref_alt_check(&ctx, raw_data_merged, raw_data_missing);
     info!("Writing final data to {}", ctx.args.output_file);
-    let file = std::fs::File::create(&ctx.args.output_file).unwrap();
-    let mut writer = flate2::write::GzEncoder::new(&file, flate2::Compression::default());
-    debug!(len = final_data.data.len(), "Writing rows",);
-    writeln!(writer, "{}", final_data.header.join("\t")).unwrap();
-    for r in final_data.data {
-        writeln!(writer, "{}", r.join("\t")).unwrap();
-    }
-    writer.finish().unwrap();
+    final_data.write(&ctx.args.output_file);
     info!("Pipeline complete");
 }
