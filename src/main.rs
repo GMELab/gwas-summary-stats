@@ -1126,12 +1126,13 @@ fn main() {
     info!("Starting preformatting");
     let output_dir = Path::new(&ctx.args.output_file).parent().unwrap();
     let raw_data = preformat(&ctx);
+    raw_data.write("raw_data.txt.gz");
     info!("Starting liftover");
     liftover(&ctx, &raw_data);
     info!("Starting dbSNP matching");
     let (raw_data_merged, raw_data_missing) = dbsnp_matching(&ctx, raw_data);
-    raw_data_merged.write(&output_dir.join("raw_data_merged.txt"));
-    raw_data_missing.write(&output_dir.join("raw_data_missing.txt"));
+    raw_data_merged.write(&output_dir.join("raw_data_merged.txt.gz"));
+    raw_data_missing.write(&output_dir.join("raw_data_missing.txt.gz"));
     info!("Starting ref/alt check");
     let final_data = ref_alt_check(&ctx, raw_data_merged, raw_data_missing);
     info!("Writing final data to {}", ctx.args.output_file);
