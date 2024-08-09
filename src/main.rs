@@ -134,7 +134,7 @@ impl Data {
         let mut writer = flate2::write::GzEncoder::new(&file, flate2::Compression::default());
         debug!(len = self.data.len(), "Writing rows",);
         writeln!(writer, "{}", self.header.join("\t")).unwrap();
-        for r in self.data {
+        for r in &self.data {
             writeln!(writer, "{}", r.join("\t")).unwrap();
         }
         writer.finish().unwrap();
