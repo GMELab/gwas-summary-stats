@@ -440,7 +440,7 @@ fn preformat(ctx: &Ctx) -> Data {
     let data = raw_data
         .data
         .into_par_iter()
-        .map(|mut r| {
+        .map(|r| {
             let mut new_r = Vec::with_capacity(new_len);
             let mut r = unsafe { std::mem::transmute::<Vec<String>, Vec<MaybeUninit<String>>>(r) };
             for idx in &new_order_idxs {
