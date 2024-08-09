@@ -139,6 +139,23 @@ impl Data {
         }
         writer.finish().unwrap();
     }
+
+    pub fn reorder(&mut self, new_order: &[&str]) {
+        let new_order_idxs = new_order.iter().map(|x| self.idx(x)).collect::<Vec<_>>();
+        let new_len = new_order.len();
+        let data = std::mem::take(&mut self.data);
+        self.data = data
+            .into_par_iter()
+            .map(|mut r| {
+                let mut new_r = Vec::with_capacity(new_len);
+                for idx in &new_order_idxs {
+                    new_r.push(std::mem::take(&mut r[*idx]));
+                }
+                new_r
+            })
+            .collect::<Vec<_>>();
+        self.header = new_order.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+    }
 }
 
 fn read_raw_data(delim: &str, file: impl std::io::Read) -> Data {
@@ -418,7 +435,7 @@ fn preformat(ctx: &Ctx) -> Data {
                 .to_string();
         }
     });
-    let new_order = [
+    raw_data.reorder(&[
         "chr",
         "pos",
         "ref",
@@ -431,36 +448,7 @@ fn preformat(ctx: &Ctx) -> Data {
         "N_total",
         "N_case",
         "N_ctrl",
-    ];
-    let new_order_idxs = new_order
-        .iter()
-        .map(|x| raw_data.idx_opt(x))
-        .collect::<Vec<_>>();
-    let new_len = new_order.len();
-    let data = raw_data
-        .data
-        .into_par_iter()
-        .map(|r| {
-            let mut new_r = Vec::with_capacity(new_len);
-            let mut r = unsafe { std::mem::transmute::<Vec<String>, Vec<MaybeUninit<String>>>(r) };
-            for idx in &new_order_idxs {
-                match idx {
-                    Some(idx) => {
-                        let v = unsafe {
-                            std::mem::replace(&mut r[*idx], MaybeUninit::uninit()).assume_init()
-                        };
-                        new_r.push(v);
-                    },
-                    None => new_r.push("NA".to_string()),
-                }
-            }
-            new_r
-        })
-        .collect::<Vec<_>>();
-    let mut raw_data = Data {
-        header: new_order.iter().map(|x| x.to_string()).collect::<Vec<_>>(),
-        data,
-    };
+    ]);
     let pos = raw_data.idx("pos");
     let chr = raw_data.idx("chr");
     let hg_version = ctx.sheet.get_from_row(row, "hg_version");
@@ -603,11 +591,8 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
         raw_data = raw_data.data.len(),
         "Read hg19 and hg38 bed files"
     );
-    raw_data.header.extend(
-        ["chr_hg19", "pos_hg19", "chr_hg38", "pos_hg38"]
-            .iter()
-            .map(|x| x.to_string()),
-    );
+    let has_hg19 = raw_data.header.contains(&"chr_hg19".to_string());
+    let has_hg38 = raw_data.header.contains(&"chr_hg38".to_string());
     let header_len = raw_data.header.len();
     raw_data.data.par_iter_mut().enumerate().for_each(|(i, r)| {
         r.reserve_exact(header_len - r.capacity());
@@ -632,7 +617,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
     drop(hg38);
 
     debug!("Reordering columns");
-    let new_headers = [
+    raw_data.reorder(&[
         "chr_hg19",
         "pos_hg19",
         "ref",
@@ -647,31 +632,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
         "N_ctrl",
         "chr_hg38",
         "pos_hg38",
-    ];
-    let new_order = new_headers
-        .iter()
-        .map(|x| raw_data.idx(x))
-        .collect::<Vec<_>>();
-    let nrows = raw_data.data.len();
-    let data = std::mem::take(&mut raw_data.data);
-    let new_data: Vec<MaybeUninit<Vec<String>>> =
-        (0..nrows).map(|_| MaybeUninit::uninit()).collect();
-    data.into_par_iter().enumerate().for_each(|(i, r)| {
-        let new_r = r
-            .into_iter()
-            .enumerate()
-            .filter(|(i, _)| new_order.contains(i))
-            .sorted_by_key(|(i, _)| new_order.iter().position(|x| x == i))
-            .map(|(_, x)| x)
-            .collect::<Vec<_>>();
-        unsafe { &mut *new_data.as_ptr().add(i).cast_mut() }.write(new_r);
-    });
-    raw_data.header = new_headers
-        .iter()
-        .map(|x| x.to_string())
-        .collect::<Vec<_>>();
-    raw_data.data =
-        unsafe { std::mem::transmute::<Vec<MaybeUninit<Vec<String>>>, Vec<Vec<String>>>(new_data) };
+    ]);
     debug!(len = raw_data.data.len(), "Raw data after bed matching");
 
     debug!("Reading dbSNP file");
@@ -914,26 +875,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
         "Missing data header"
     );
     debug!("Reordering columns");
-    let data = std::mem::take(&mut raw_data_merged.data);
-    let new_data: Vec<MaybeUninit<Vec<String>>> =
-        (0..data.len()).map(|_| MaybeUninit::uninit()).collect();
-    data.into_par_iter().enumerate().for_each(|(i, r)| {
-        let new_r = r
-            .into_iter()
-            .enumerate()
-            .filter(|(i, _)| new_order.contains(&raw_data_merged.header[*i].as_str()))
-            .sorted_by_key(|(i, _)| {
-                new_order
-                    .iter()
-                    .position(|x| x == &raw_data_merged.header[*i])
-            })
-            .map(|(_, x)| x)
-            .collect::<Vec<_>>();
-        unsafe { &mut *new_data.as_ptr().add(i).cast_mut() }.write(new_r);
-    });
-    raw_data_merged.header = new_order.iter().map(|x| x.to_string()).collect::<Vec<_>>();
-    raw_data_merged.data =
-        unsafe { std::mem::transmute::<Vec<MaybeUninit<Vec<String>>>, Vec<Vec<String>>>(new_data) };
+    raw_data_merged.reorder(&new_order);
     for i in 0..dbsnp.header.len() {
         if !dbsnp_idxs.contains(&i) {
             debug!(i, header = dbsnp.header[i], "Adding missing column");
@@ -959,27 +901,9 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
         raw_data_missing.header.len(),
         raw_data_missing.data[0].len()
     );
-    let data = std::mem::take(&mut raw_data_missing.data);
-    let new_data: Vec<MaybeUninit<Vec<String>>> =
-        (0..data.len()).map(|_| MaybeUninit::uninit()).collect();
-    data.into_par_iter().enumerate().for_each(|(i, r)| {
-        let new_r = r
-            .into_iter()
-            .enumerate()
-            .filter(|(i, _)| new_order.contains(&raw_data_missing.header[*i].as_str()))
-            .sorted_by_key(|(i, _)| {
-                new_order
-                    .iter()
-                    .position(|x| x == &raw_data_missing.header[*i])
-            })
-            .map(|(_, x)| x)
-            .collect::<Vec<_>>();
-        unsafe { &mut *new_data.as_ptr().add(i).cast_mut() }.write(new_r);
-    });
-    raw_data_missing.header = new_order.iter().map(|x| x.to_string()).collect::<Vec<_>>();
-    raw_data_missing.data =
-        unsafe { std::mem::transmute::<Vec<MaybeUninit<Vec<String>>>, Vec<Vec<String>>>(new_data) };
+    raw_data_missing.reorder(&new_order);
     debug!(header = ?raw_data_merged.header);
+
     assert_eq!(raw_data_merged.header.len(), raw_data_merged.data[0].len());
     debug!(header = ?raw_data_missing.header);
     assert_eq!(
@@ -999,7 +923,6 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
         .map(|r| format!("chr{}:{}-{}", r[chr_hg38], r[pos_hg38], r[pos_hg38]))
         .collect::<Vec<_>>();
     let num_inputs = inputs.len();
-    let chunk = AtomicUsize::new(0);
     let cpus = num_cpus::get() * 4;
     let num_threads = std::env::var("SAMTOOLS_THREADS")
         .map(|s| s.parse().expect("SAMTOOLS_THREADS is not a number"))
@@ -1012,18 +935,25 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
         .extend((0..num_inputs).map(|_| MaybeUninit::uninit()));
     let chunk_size = 5000;
     let chunks = (num_inputs + chunk_size - 1) / chunk_size;
+    let chunks = Mutex::new((0..chunks).collect::<Vec<_>>());
     debug!(
         num_threads,
-        num_inputs, chunk_size, chunks, "Running samtools"
+        num_inputs,
+        chunk_size,
+        chunks = chunks.lock().unwrap().len(),
+        "Running samtools"
     );
     std::thread::scope(|s| {
         for _ in 0..num_threads {
             s.spawn(|| {
                 loop {
-                    let chunk = chunk.fetch_add(1, Ordering::Relaxed);
-                    if chunk >= chunks {
-                        break;
-                    }
+                    let chunk = {
+                        let mut chunks = chunks.lock().unwrap();
+                        if chunks.is_empty() {
+                            return;
+                        }
+                        chunks.pop().unwrap()
+                    };
                     let j = chunk * chunk_size;
                     let end = (j + chunk_size).min(num_inputs);
                     let input = &inputs[j..end];
@@ -1035,7 +965,17 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
                         cmd.arg(i);
                     }
                     debug!(chunk, "Constructed samtools command");
-                    let output = cmd.output().unwrap();
+                    let output = match cmd.output() {
+                        Ok(o) => o,
+                        Err(e) if e.kind() == std::io::ErrorKind::OutOfMemory => {
+                            chunks.lock().unwrap().push(chunk);
+                            return;
+                        },
+                        Err(e) => {
+                            error!(chunk, ?e, "Failed to run samtools");
+                            return;
+                        },
+                    };
                     debug!(chunk, "Ran samtools");
                     let output = String::from_utf8(output.stdout).unwrap();
                     let mut nucleotides = nucleotides.lock().unwrap();
