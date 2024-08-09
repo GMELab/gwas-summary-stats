@@ -7,7 +7,6 @@ use std::{
 };
 
 use clap::Parser;
-use itertools::Itertools;
 use rayon::prelude::*;
 use tracing::{debug, error, info, warn};
 
@@ -137,8 +136,12 @@ impl Data {
         writer.finish().unwrap();
     }
 
+    #[track_caller]
     pub fn reorder(&mut self, new_order: &[&str]) {
-        let new_order_idxs = new_order.iter().map(|x| self.idx(x)).collect::<Vec<_>>();
+        let new_order_idxs = new_order
+            .iter()
+            .map(|x| self.idx_opt(x))
+            .collect::<Vec<_>>();
         let new_len = new_order.len();
         let data = std::mem::take(&mut self.data);
         self.data = data
@@ -146,7 +149,10 @@ impl Data {
             .map(|mut r| {
                 let mut new_r = Vec::with_capacity(new_len);
                 for idx in &new_order_idxs {
-                    new_r.push(std::mem::take(&mut r[*idx]));
+                    match idx {
+                        Some(idx) => new_r.push(std::mem::take(&mut r[*idx])),
+                        None => new_r.push("NA".to_string()),
+                    }
                 }
                 new_r
             })
