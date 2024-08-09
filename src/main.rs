@@ -1124,7 +1124,7 @@ fn main() {
     let ctx = Ctx { args, sheet: data };
     info!(trait_name = %ctx.args.trait_name, "Starting pipeline");
     info!("Starting preformatting");
-    let output_dir = Path::new(&ctx.args.output_dir).parent().unwrap();
+    let output_dir = Path::new(&ctx.args.output_file).parent().unwrap();
     let raw_data = preformat(&ctx);
     info!("Starting liftover");
     liftover(&ctx, &raw_data);
