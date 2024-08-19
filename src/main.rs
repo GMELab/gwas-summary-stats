@@ -1031,6 +1031,11 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
     let nucleotides: Vec<String> =
         unsafe { std::mem::transmute(nucleotides.into_inner().unwrap()) };
     debug!("Flattened nucleotides");
+    let mut file = std::fs::File::create("nucleotides.txt.gz").unwrap();
+    for n in &nucleotides {
+        writeln!(file, "{n}").unwrap();
+    }
+    drop(file);
     let ref_ = raw_data_merged.idx("ref");
     let alt = raw_data_merged.idx("alt");
     let effect_size = raw_data_merged.idx("effect_size");
