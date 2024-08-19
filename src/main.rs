@@ -590,7 +590,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
                     .records()
                     .map(|x| {
                         let x = x.unwrap();
-                        (x.get(3).unwrap().parse().unwrap() - 1, x)
+                        (x.get(3).unwrap().parse::<usize>().unwrap() - 1, x)
                     })
                     .collect::<HashMap<usize, _>>(),
             )
@@ -612,7 +612,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
                     .records()
                     .map(|x| {
                         let x = x.unwrap();
-                        (x.get(3).unwrap().parse().unwrap() - 1, x)
+                        (x.get(3).unwrap().parse::<usize>().unwrap() - 1, x)
                     })
                     .collect::<HashMap<usize, _>>(),
             )
