@@ -585,7 +585,15 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
                 .has_headers(false)
                 .from_path(std::env::current_dir().unwrap().join("hg19.bed"))
                 .unwrap();
-            Some(hg19_file.records().map(|x| x.unwrap()).collect::<Vec<_>>())
+            Some(
+                hg19_file
+                    .records()
+                    .map(|x| {
+                        let x = x.unwrap();
+                        (x.get(3).unwrap().parse().unwrap() - 1, x)
+                    })
+                    .collect::<HashMap<usize, _>>(),
+            )
         }
     };
     let hg38 = {
@@ -599,7 +607,15 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
                 .has_headers(false)
                 .from_path(std::env::current_dir().unwrap().join("hg38.bed"))
                 .unwrap();
-            Some(hg38_file.records().map(|x| x.unwrap()).collect::<Vec<_>>())
+            Some(
+                hg38_file
+                    .records()
+                    .map(|x| {
+                        let x = x.unwrap();
+                        (x.get(3).unwrap().parse().unwrap() - 1, x)
+                    })
+                    .collect::<HashMap<usize, _>>(),
+            )
         }
     };
     debug!(
@@ -613,21 +629,25 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
         .enumerate()
         .for_each(move |(i, r)| {
             r.reserve_exact(header_len - r.capacity());
-            let hg19 = hg19.as_ref().and_then(|x| x.get(i));
-            let hg38 = hg38.as_ref().and_then(|x| x.get(i));
-            if let Some(hg19) = hg19 {
-                r.push(hg19.get(0).unwrap().to_string());
-                r.push(hg19.get(2).unwrap().to_string());
-            } else {
-                r.push("NA".to_string());
-                r.push("NA".to_string());
+            if let Some(ref hg19) = hg19 {
+                let hg19 = hg19.get(&i);
+                if let Some(hg19) = hg19 {
+                    r.push(hg19.get(0).unwrap().to_string());
+                    r.push(hg19.get(2).unwrap().to_string());
+                } else {
+                    r.push("NA".to_string());
+                    r.push("NA".to_string());
+                }
             }
-            if let Some(hg38) = hg38 {
-                r.push(hg38.get(0).unwrap().to_string());
-                r.push(hg38.get(2).unwrap().to_string());
-            } else {
-                r.push("NA".to_string());
-                r.push("NA".to_string());
+            if let Some(ref hg38) = hg38 {
+                let hg38 = hg38.get(&i);
+                if let Some(hg38) = hg38 {
+                    r.push(hg38.get(0).unwrap().to_string());
+                    r.push(hg38.get(2).unwrap().to_string());
+                } else {
+                    r.push("NA".to_string());
+                    r.push("NA".to_string());
+                }
             }
         });
 
