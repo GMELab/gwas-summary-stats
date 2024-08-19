@@ -648,6 +648,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
         "chr_hg38",
         "pos_hg38",
     ]);
+    raw_data.write("dbsnp.e.txt.gz");
     debug!(len = raw_data.data.len(), "Raw data after bed matching");
 
     debug!("Reading dbSNP file");
