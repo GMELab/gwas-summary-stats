@@ -392,6 +392,7 @@ fn preformat(ctx: &Ctx) -> Data {
             })
             .collect::<Vec<_>>();
     }
+    debug!(len = raw_data.data.len(), "Raw data after f");
     // g) Tabulate columns for sample sizes
     for var in ["total", "case", "ctrl"] {
         let var_col_name = ctx.sheet.get_from_row(row, &format!("N_{}_column", var));
@@ -444,6 +445,7 @@ fn preformat(ctx: &Ctx) -> Data {
                 .to_string();
         }
     });
+    debug!(len = raw_data.data.len(), "Raw data after g");
     raw_data.reorder(&[
         "chr",
         "pos",
