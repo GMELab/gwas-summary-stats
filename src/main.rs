@@ -3,6 +3,7 @@ use std::{
     io::Write,
     mem::MaybeUninit,
     path::Path,
+    ptr::drop_in_place,
     sync::Mutex,
 };
 
@@ -73,6 +74,8 @@ pub struct Args {
     fasta_ref:        String,
     #[arg(short, long)]
     output_file:      String,
+    #[arg(short, long)]
+    samtools_threads: Option<usize>,
 }
 
 pub struct Ctx {
@@ -82,6 +85,7 @@ pub struct Ctx {
 
 #[derive(Clone)]
 pub struct Data {
+    // raw:    String,
     header: Vec<String>,
     data:   Vec<Vec<String>>,
 }
@@ -159,47 +163,49 @@ impl Data {
             .collect::<Vec<_>>();
         self.header = new_order.iter().map(|x| x.to_string()).collect::<Vec<_>>();
     }
+
+    pub fn read(delim: char, mut file: impl std::io::Read, has_header: bool) -> Self {
+        let mut raw = String::new();
+        file.read_to_string(&mut raw).unwrap();
+        let (header, content) = if has_header {
+            let (header, content) = raw.split_once('\n').unwrap();
+            let header = header
+                .split(delim)
+                // .map(|x| unsafe { String::from_raw_parts(x.as_ptr().cast_mut(), x.len(), x.len()) })
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>();
+            (header, content)
+        } else {
+            (vec![], raw.as_str())
+        };
+        let data = content
+            .par_lines()
+            .map(|x| {
+                x.split(delim)
+                    // .map(|x| unsafe {
+                    //     String::from_raw_parts(x.as_ptr().cast_mut(), x.len(), x.len())
+                    // })
+                    .map(|x| x.to_string())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        // Data { raw, header, data }
+        Data { header, data }
+    }
 }
 
 fn read_raw_data(delim: &str, file: impl std::io::Read) -> Data {
-    let mut contents = if delim == "\t" || delim == "tab" {
-        csv::ReaderBuilder::new()
-            .delimiter(b'\t')
-            .has_headers(true)
-            .from_reader(file)
+    let delim = if delim == "\t" || delim == "tab" {
+        '\t'
     } else if delim == "," || delim == "comma" {
-        csv::ReaderBuilder::new()
-            .delimiter(b',')
-            .has_headers(true)
-            .from_reader(file)
+        ','
     } else if delim == "space" {
-        csv::ReaderBuilder::new()
-            .delimiter(b' ')
-            .has_headers(true)
-            .from_reader(file)
+        ' '
     } else {
         error!("Invalid column delimiter {}", delim);
         panic!();
     };
-    let header = contents
-        .headers()
-        .unwrap()
-        .into_iter()
-        .map(|x| x.to_string())
-        .collect::<Vec<_>>();
-    if header.len() <= 4 {
-        error!(
-            "Raw input file has less than 5 columns, likely the column delimiter has been \
-             misspecified"
-        );
-        panic!();
-    }
-    let data = contents.records().map(|x| x.unwrap()).collect::<Vec<_>>();
-    let data = data
-        .iter()
-        .map(|x| x.iter().map(|x| x.to_string()).collect::<Vec<_>>())
-        .collect::<Vec<_>>();
-    Data { header, data }
+    Data::read(delim, file, true)
 }
 
 #[tracing::instrument(skip(ctx))]
@@ -673,22 +679,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
 
     debug!("Reading dbSNP file");
     let dbsnp = flate2::read::GzDecoder::new(std::fs::File::open(&ctx.args.dbsnp_file).unwrap());
-    let mut dbsnp = csv::ReaderBuilder::new()
-        .delimiter(b'\t')
-        .has_headers(true)
-        .from_reader(dbsnp);
-    let header = dbsnp
-        .headers()
-        .unwrap()
-        .into_iter()
-        .map(|x| x.to_string())
-        .collect::<Vec<_>>();
-    let data = dbsnp
-        .records()
-        .map(|x| x.unwrap().iter().map(|x| x.to_string()).collect::<Vec<_>>())
-        .collect::<Vec<_>>();
-    drop(dbsnp);
-    let dbsnp = Data { header, data };
+    let dbsnp = Data::read('\t', dbsnp, true);
     debug!("Merging dbSNP data");
     let dbsnp_idxs = [
         dbsnp.idx("chr"),
@@ -959,11 +950,10 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
         .map(|r| format!("chr{}:{}-{}", r[chr_hg38], r[pos_hg38], r[pos_hg38]))
         .collect::<Vec<_>>();
     let num_inputs = inputs.len();
-    let cpus = num_cpus::get() * 4;
-    let num_threads = std::env::var("SAMTOOLS_THREADS")
-        .map(|s| s.parse().expect("SAMTOOLS_THREADS is not a number"))
-        .unwrap_or(cpus)
-        .clamp(1, cpus);
+    let num_threads = ctx
+        .args
+        .samtools_threads
+        .unwrap_or_else(|| num_cpus::get() * 4);
     let nucleotides = Mutex::new(Vec::with_capacity(num_inputs));
     nucleotides
         .lock()
