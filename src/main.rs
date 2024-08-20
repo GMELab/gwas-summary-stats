@@ -3,7 +3,6 @@ use std::{
     io::Write,
     mem::MaybeUninit,
     path::Path,
-    ptr::drop_in_place,
     sync::Mutex,
 };
 
@@ -206,6 +205,16 @@ fn read_raw_data(delim: &str, file: impl std::io::Read) -> Data {
         panic!();
     };
     Data::read(delim, file, true)
+}
+
+fn reserve_to(r: &mut Vec<String>, len: usize) -> usize {
+    match len.checked_sub(r.capacity()) {
+        Some(res) => {
+            r.reserve_exact(res);
+            res
+        },
+        None => 0,
+    }
 }
 
 #[tracing::instrument(skip(ctx))]
@@ -423,9 +432,7 @@ fn preformat(ctx: &Ctx) -> Data {
     debug!("g: Added header");
     let header_len = raw_data.header.len();
     raw_data.data.par_iter_mut().for_each(|r| {
-        let res = header_len - r.capacity();
-        debug!(len = r.len(), header_len, capacity = r.capacity());
-        r.reserve_exact(res);
+        let res = reserve_to(r, header_len);
         for _ in 0..res {
             r.push(na.clone());
         }
@@ -630,7 +637,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
         .par_iter_mut()
         .enumerate()
         .for_each(move |(i, r)| {
-            r.reserve_exact(header_len - r.capacity());
+            reserve_to(r, header_len);
             if let Some(ref hg19) = hg19 {
                 let hg19 = hg19.get(&i);
                 if let Some(hg19) = hg19 {
@@ -730,7 +737,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
     raw_data_merged.data = raw_data_merged_data
         .into_par_iter()
         .filter_map(|mut r| {
-            r.reserve_exact(header_len - r.capacity());
+            reserve_to(&mut r, header_len);
             let key = (
                 r[raw_data_idxs[0]].as_str(),
                 r[raw_data_idxs[1]].as_str(),
@@ -757,7 +764,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
     raw_data_flipped_data = raw_data_flipped_data
         .into_par_iter()
         .filter_map(|mut r| {
-            r.reserve_exact(header_len - r.capacity());
+            reserve_to(&mut r, header_len);
             let key = (
                 r[raw_data_merged_flipped_idxs[0]].as_str(),
                 r[raw_data_merged_flipped_idxs[1]].as_str(),
@@ -908,7 +915,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
     raw_data_missing.header.push("unique_id".to_string());
     let header_len = raw_data_missing.header.len();
     raw_data_missing.data.par_iter_mut().for_each(|r| {
-        r.reserve_exact(header_len - r.capacity());
+        reserve_to(r, header_len);
         for i in 0..dbsnp.header.len() {
             if !dbsnp_idxs.contains(&i) {
                 r.push("NA".to_string());
