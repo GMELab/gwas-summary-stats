@@ -424,6 +424,7 @@ fn preformat(ctx: &Ctx) -> Data {
     let header_len = raw_data.header.len();
     raw_data.data.par_iter_mut().for_each(|r| {
         let res = header_len - r.capacity();
+        debug!(len = r.len(), header_len, capacity = r.capacity());
         r.reserve_exact(res);
         for _ in 0..res {
             r.push(na.clone());
