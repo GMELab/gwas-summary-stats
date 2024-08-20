@@ -427,6 +427,7 @@ fn preformat(ctx: &Ctx) -> Data {
             r.push(na.clone());
         }
     });
+    debug!("g: Added header");
     // compile case control or total sample sizes if inoformation is available
     let n_case = raw_data.idx("N_case");
     let n_ctrl = raw_data.idx("N_ctrl");
