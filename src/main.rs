@@ -1049,7 +1049,7 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
                 if d[alt] == n {
                     let (one, two) = d.split_at_mut(alt.max(ref_));
                     let min = alt.min(ref_);
-                    let max = alt.max(ref_);
+                    let max = alt.max(ref_) - one.len();
                     std::mem::swap(&mut one[min], &mut two[max]);
                     let es = d[effect_size].parse::<f64>().unwrap();
                     d[effect_size] = (-es).to_string();
