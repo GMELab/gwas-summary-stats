@@ -177,23 +177,17 @@ impl Data {
         } else {
             (vec![], raw.as_str())
         };
-        let pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(rayon::current_num_threads() * 6)
-            .build()
-            .unwrap();
-        let data = pool.install(|| {
-            content
-                .par_lines()
-                .map(|x| {
-                    x.split(delim)
+        let data = content
+            .par_lines()
+            .map(|x| {
+                x.split(delim)
                     // .map(|x| unsafe {
                     //     String::from_raw_parts(x.as_ptr().cast_mut(), x.len(), x.len())
                     // })
                     .map(|x| x.to_string())
                     .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>()
-        });
+            })
+            .collect::<Vec<_>>();
         // Data { raw, header, data }
         Data { header, data }
     }
