@@ -668,7 +668,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
         "chr_hg38",
         "pos_hg38",
     ]);
-    raw_data.write("dbsnp.e.txt.gz");
+    // raw_data.write("dbsnp.e.txt.gz");
     debug!(len = raw_data.data.len(), "Raw data after bed matching");
 
     debug!("Reading dbSNP file");
@@ -1031,11 +1031,11 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
     let nucleotides: Vec<String> =
         unsafe { std::mem::transmute(nucleotides.into_inner().unwrap()) };
     debug!("Flattened nucleotides");
-    let mut file = std::fs::File::create("nucleotides.txt.gz").unwrap();
-    for n in &nucleotides {
-        writeln!(file, "{n}").unwrap();
-    }
-    drop(file);
+    // let mut file = std::fs::File::create("nucleotides.txt.gz").unwrap();
+    // for n in &nucleotides {
+    //     writeln!(file, "{n}").unwrap();
+    // }
+    // drop(file);
     let ref_ = raw_data_merged.idx("ref");
     let alt = raw_data_merged.idx("alt");
     let effect_size = raw_data_merged.idx("effect_size");
@@ -1055,8 +1055,10 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
                         std::mem::swap(&mut one[min], &mut two[max]);
                         let es = d[effect_size].parse::<f64>().unwrap();
                         d[effect_size] = (-es).to_string();
-                        let e = d[eaf].parse::<f64>().unwrap();
-                        d[eaf] = (1.0 - e).to_string();
+                        if d[eaf] != "NA" && d[eaf] != "NaN" {
+                            let e = d[eaf].parse::<f64>().unwrap();
+                            d[eaf] = (1.0 - e).to_string();
+                        }
                     }
                     d
                 }),
@@ -1121,15 +1123,14 @@ fn main() {
     let ctx = Ctx { args, sheet: data };
     info!(trait_name = %ctx.args.trait_name, "Starting pipeline");
     info!("Starting preformatting");
-    let output_dir = Path::new(&ctx.args.output_file).parent().unwrap();
     let raw_data = preformat(&ctx);
-    raw_data.write("raw_data.txt.gz");
+    // raw_data.write("raw_data.txt.gz");
     info!("Starting liftover");
     liftover(&ctx, &raw_data);
     info!("Starting dbSNP matching");
     let (raw_data_merged, raw_data_missing) = dbsnp_matching(&ctx, raw_data);
-    raw_data_merged.write(output_dir.join("raw_data_merged.txt.gz"));
-    raw_data_missing.write(output_dir.join("raw_data_missing.txt.gz"));
+    // raw_data_merged.write("raw_data_merged.txt.gz");
+    // raw_data_missing.write("raw_data_missing.txt.gz");
     info!("Starting ref/alt check");
     let final_data = ref_alt_check(&ctx, raw_data_merged, raw_data_missing);
     info!("Writing final data to {}", ctx.args.output_file);
