@@ -54,27 +54,29 @@ const ASSIGN_COL_NAMES: [&str; 13] = [
 #[command(version)]
 pub struct Args {
     #[arg(short, long)]
-    google_sheets_id: String,
+    google_sheets_id:    String,
     #[arg(short, long)]
-    trait_name:       String,
+    trait_name:          String,
     #[arg(short = 'i', long)]
-    raw_input_dir:    String,
+    raw_input_dir:       String,
     #[arg(short, long)]
-    liftover:         String,
+    liftover:            String,
     #[arg(long)]
-    liftover_dir:     String,
+    liftover_dir:        String,
     #[arg(short = 'r', long)]
-    grs_dir:          String,
+    grs_dir:             String,
     #[arg(short, long)]
-    dbsnp_file:       String,
+    dbsnp_file:          String,
     #[arg(short, long)]
-    samtools:         String,
+    samtools:            String,
     #[arg(short, long)]
-    fasta_ref:        String,
+    fasta_ref:           String,
     #[arg(short, long)]
-    output_file:      String,
+    output_file:         String,
     #[arg(short, long)]
-    samtools_threads: Option<usize>,
+    samtools_threads:    Option<usize>,
+    #[arg(short = 'c', long)]
+    samtools_chunk_size: Option<usize>,
 }
 
 pub struct Ctx {
@@ -960,7 +962,7 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
         .lock()
         .unwrap()
         .extend((0..num_inputs).map(|_| MaybeUninit::uninit()));
-    let chunk_size = 5000;
+    let chunk_size = ctx.args.samtools_chunk_size.unwrap_or(5000);
     let chunks = (num_inputs + chunk_size - 1) / chunk_size;
     let chunks = Mutex::new((0..chunks).collect::<Vec<_>>());
     debug!(
