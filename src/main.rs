@@ -586,18 +586,13 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
         } else {
             raw_data.header.push("chr_hg19".to_string());
             raw_data.header.push("pos_hg19".to_string());
-            let mut hg19_file = csv::ReaderBuilder::new()
-                .delimiter(b'\t')
-                .has_headers(false)
-                .from_path(std::env::current_dir().unwrap().join("hg19.bed"))
-                .unwrap();
+            let file =
+                std::fs::File::open(std::env::current_dir().unwrap().join("hg19.bed")).unwrap();
             Some(
-                hg19_file
-                    .records()
-                    .map(|x| {
-                        let x = x.unwrap();
-                        (x.get(3).unwrap().parse::<usize>().unwrap() - 2, x)
-                    })
+                Data::read('\t', file, false)
+                    .data
+                    .into_iter()
+                    .map(|x| (x.get(3).unwrap().parse::<usize>().unwrap() - 2, x))
                     .collect::<HashMap<usize, _>>(),
             )
         }
@@ -608,18 +603,13 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
         } else {
             raw_data.header.push("chr_hg38".to_string());
             raw_data.header.push("pos_hg38".to_string());
-            let mut hg38_file = csv::ReaderBuilder::new()
-                .delimiter(b'\t')
-                .has_headers(false)
-                .from_path(std::env::current_dir().unwrap().join("hg38.bed"))
-                .unwrap();
+            let file =
+                std::fs::File::open(std::env::current_dir().unwrap().join("hg38.bed")).unwrap();
             Some(
-                hg38_file
-                    .records()
-                    .map(|x| {
-                        let x = x.unwrap();
-                        (x.get(3).unwrap().parse::<usize>().unwrap() - 2, x)
-                    })
+                Data::read('\t', file, false)
+                    .data
+                    .into_iter()
+                    .map(|x| (x.get(3).unwrap().parse::<usize>().unwrap() - 2, x))
                     .collect::<HashMap<usize, _>>(),
             )
         }
@@ -638,7 +628,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
             if let Some(ref hg19) = hg19 {
                 let hg19 = hg19.get(&i);
                 if let Some(hg19) = hg19 {
-                    r.push(hg19.get(0).unwrap().to_string());
+                    r.push(hg19.first().unwrap().to_string());
                     r.push(hg19.get(2).unwrap().to_string());
                 } else {
                     r.push("NA".to_string());
@@ -648,7 +638,7 @@ fn dbsnp_matching(ctx: &Ctx, mut raw_data: Data) -> (Data, Data) {
             if let Some(ref hg38) = hg38 {
                 let hg38 = hg38.get(&i);
                 if let Some(hg38) = hg38 {
-                    r.push(hg38.get(0).unwrap().to_string());
+                    r.push(hg38.first().unwrap().to_string());
                     r.push(hg38.get(2).unwrap().to_string());
                 } else {
                     r.push("NA".to_string());
