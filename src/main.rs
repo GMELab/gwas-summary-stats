@@ -414,11 +414,13 @@ fn preformat(ctx: &Ctx) -> Data {
     let na = "NA".to_string();
     // if no sample sizes indicated and gwas legend input is NA then set all three
     // columns to NA
+    debug!("g: Adding header");
     for var in ["total", "case", "ctrl"] {
         if !raw_data.header.contains(&format!("N_{}", var)) {
             raw_data.header.push(format!("N_{}", var));
         }
     }
+    debug!("g: Added header");
     let header_len = raw_data.header.len();
     raw_data.data.par_iter_mut().for_each(|r| {
         let res = header_len - r.capacity();
@@ -427,7 +429,7 @@ fn preformat(ctx: &Ctx) -> Data {
             r.push(na.clone());
         }
     });
-    debug!("g: Added header");
+    debug!("g: Added NAs");
     // compile case control or total sample sizes if inoformation is available
     let n_case = raw_data.idx("N_case");
     let n_ctrl = raw_data.idx("N_ctrl");
