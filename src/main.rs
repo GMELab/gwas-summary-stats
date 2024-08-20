@@ -208,13 +208,11 @@ fn read_raw_data(delim: &str, file: impl std::io::Read) -> Data {
 }
 
 fn reserve_to(r: &mut Vec<String>, len: usize) -> usize {
-    match len.checked_sub(r.capacity()) {
-        Some(res) => {
-            r.reserve_exact(res);
-            res
-        },
-        None => 0,
+    let n = len - r.len();
+    if let Some(res) = len.checked_sub(r.capacity()) {
+        r.reserve_exact(res);
     }
+    n
 }
 
 #[tracing::instrument(skip(ctx))]
