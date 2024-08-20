@@ -1040,29 +1040,31 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
     let alt = raw_data_merged.idx("alt");
     let effect_size = raw_data_merged.idx("effect_size");
     let eaf = raw_data_merged.idx("EAF");
-    raw_data_merged
-        .data
-        .par_extend(
-            raw_data_missing
-                .data
-                .into_par_iter()
-                .zip(nucleotides)
-                .map(|(mut d, n)| {
-                    if d[alt] == n {
-                        let (one, two) = d.split_at_mut(alt.max(ref_));
-                        let min = alt.min(ref_);
-                        let max = alt.max(ref_);
-                        std::mem::swap(&mut one[min], &mut two[max]);
-                        let es = d[effect_size].parse::<f64>().unwrap();
-                        d[effect_size] = (-es).to_string();
-                        if d[eaf] != "NA" && d[eaf] != "NaN" {
-                            let e = d[eaf].parse::<f64>().unwrap();
-                            d[eaf] = (1.0 - e).to_string();
-                        }
+    raw_data_merged.data.par_extend(
+        raw_data_missing
+            .data
+            .into_par_iter()
+            .zip(nucleotides)
+            .filter_map(|(mut d, n)| {
+                if d[alt] == n {
+                    let (one, two) = d.split_at_mut(alt.max(ref_));
+                    let min = alt.min(ref_);
+                    let max = alt.max(ref_);
+                    std::mem::swap(&mut one[min], &mut two[max]);
+                    let es = d[effect_size].parse::<f64>().unwrap();
+                    d[effect_size] = (-es).to_string();
+                    if d[eaf] != "NA" && d[eaf] != "NaN" {
+                        let e = d[eaf].parse::<f64>().unwrap();
+                        d[eaf] = (1.0 - e).to_string();
                     }
-                    d
-                }),
-        );
+                    Some(d)
+                } else if d[ref_] == n {
+                    Some(d)
+                } else {
+                    None
+                }
+            }),
+    );
     debug!("Merged missing data");
     raw_data_merged
 }
