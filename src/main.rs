@@ -1062,6 +1062,11 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
     raw_data_merged
 }
 
+// potential future improvements:
+// - samtools seems like it still has a lot of CPU headroom to spare
+// - writing out to files is very slow
+// - reading in files is very poorly parallelized, it spends a lot of time
+//   allocating all the Strings
 fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(
