@@ -73,7 +73,7 @@ pub struct Args {
     fasta_ref:           String,
     #[arg(short, long)]
     output_file:         String,
-    #[arg(short, long)]
+    #[arg(short = 'p', long)]
     samtools_threads:    Option<usize>,
     #[arg(short = 'c', long)]
     samtools_chunk_size: Option<usize>,
@@ -349,10 +349,22 @@ fn preformat(ctx: &Ctx) -> Data {
                 && r != "D"
                 && r != "IND"
                 && r != "DEL"
+                && r != "<CN0>"
+                && r != "<CN1>"
+                && r != "<CN2>"
+                && r != "<CN3>"
+                && r != "<CN4>"
+                && r != "<CN5>"
                 && a != "I"
                 && a != "D"
                 && a != "IND"
                 && a != "DEL"
+                && a != "<CN0>"
+                && a != "<CN1>"
+                && a != "<CN2>"
+                && a != "<CN3>"
+                && a != "<CN4>"
+                && a != "<CN5>"
             // e) Remove variants with nonsensical effect estimates
                 && effect_size != "Nan"
                 && effect_size != "NaN"
@@ -406,14 +418,14 @@ fn preformat(ctx: &Ctx) -> Data {
     for var in ["total", "case", "ctrl"] {
         let var_col_name = ctx.sheet.get_from_row(row, &format!("N_{}_column", var));
         let var_value = ctx.sheet.get_from_row(row, &format!("N_{}", var));
-        if var_col_name != "NA" {
+        if var_col_name != "NA" && var_col_name != "NaN" {
             // rename column if values are present
             for r in raw_data.header.iter_mut() {
                 if *r == format!("N_{}_column", var) {
                     *r = format!("N_{}", var);
                 }
             }
-        } else if var_value != "NA" {
+        } else if var_value != "NA" && var_value != "NaN" {
             // update column
             for r in raw_data.col_mut(&format!("N_{}", var)) {
                 r.clone_from(var_value);
