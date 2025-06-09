@@ -975,7 +975,7 @@ fn ref_alt_check(ctx: &Ctx, mut raw_data_merged: Data, raw_data_missing: Data) -
         .unwrap()
         .extend((0..num_inputs).map(|_| MaybeUninit::uninit()));
     let chunk_size = ctx.args.samtools_chunk_size.unwrap_or(5000);
-    let chunks = (num_inputs + chunk_size - 1) / chunk_size;
+    let chunks = num_inputs.div_ceil(chunk_size);
     let chunks = Mutex::new((0..chunks).collect::<Vec<_>>());
     debug!(
         num_threads,
