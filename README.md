@@ -1,12 +1,12 @@
 # gwas-summary-stats
 
+## Installation
+
 Requires the [Rust programming language](https://www.rust-lang.org/).
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
-
-## Installation
 
 ```bash
 cargo install --git https://github.com/GMELab/gwas-summary-stats
