@@ -22,11 +22,11 @@ If you would rather do it manually then you can do the following:
 # samtools is annoying now with the new servers, thank you James for figuring this out 
 server=$(hostname)
 if [[ $server == "rigenep9" || $server == "rigenep10" ]]; then
-    samtools="/mnt/nfs/rigenenfs/shared_resources/softwares/samtools-1.22/samtools-1.22_regenep9_10/samtools"
-elif [[ $server == "rigenep2"]]; then
-    samtools="/mnt/nfs/rigenenfs/shared_resources/softwares/samtools-1.22/samtools-1.22_regenep2/samtools"
-elif [[ $server == "rigenep1"]]; then
-    samtools="/mnt/nfs/rigenenfs/shared_resources/softwares/samtools-1.22/samtools-1.22_regenep1/samtools"
+    samtools="/mnt/nfs/rigenenfs/shared_resources/softwares/samtools-1.22/samtools-1.22_rigenep9_10/samtools"
+elif [[ $server == "rigenep2" ]]; then
+    samtools="/mnt/nfs/rigenenfs/shared_resources/softwares/samtools-1.22/samtools-1.22_rigenep2/samtools"
+elif [[ $server == "rigenep1" ]; then
+    samtools="/mnt/nfs/rigenenfs/shared_resources/softwares/samtools-1.22/samtools-1.22_rigenep1/samtools"
 elif [[ $server == "ristatp15" || $server == "ristatp17" || $server == "ristatp19" || $server == "ristatp21" || $server == "ristatp23" || $server == "ristatp25" ]]; then
     samtools="/mnt/nfs/rigenenfs/shared_resources/softwares/samtools-1.22/samtools-1.22_ristatps/samtools"
 fi
