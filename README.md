@@ -14,7 +14,7 @@ cargo install --git https://github.com/GMELab/gwas-summary-stats
 
 ## Usage
 
-You can use the wrapper James made at `/mnt/nfs/rigenenfs/shared_resources/GWAS_SUMMARY_STATS/GWAS_formatter_Rust_version_wrapper.sh`. It accepts three arguments, the trait name, the google sheets URL, and the output file.
+You can use the wrapper James made at `/mnt/nfs/rigenenfs/shared_resources/GWAS_SUMMARY_STATS/GWAS_formatter_Rust_version_wrapper_final.sh`. It accepts three arguments, the trait name, the google sheets URL, and the output file.
 
 If you would rather do it manually then you can do the following:
 
